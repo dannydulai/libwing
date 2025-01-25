@@ -165,3 +165,97 @@ int wing_node_data_has_float(node_data_t data) {
 int wing_node_data_has_int(node_data_t data) {
     return data ? (data->data.hasInt() ? 1 : 0) : 0;
 }
+
+uint32_t wing_node_definition_get_parent_id(node_definition_t def) {
+    return def ? def->def.parentId : 0;
+}
+
+uint32_t wing_node_definition_get_id(node_definition_t def) {
+    return def ? def->def.id : 0;
+}
+
+uint16_t wing_node_definition_get_index(node_definition_t def) {
+    return def ? def->def.index : 0;
+}
+
+int wing_node_definition_get_name(node_definition_t def, char* buffer, size_t buffer_size) {
+    if (!def || !buffer || buffer_size == 0) return 0;
+    strncpy(buffer, def->def.name.c_str(), buffer_size - 1);
+    buffer[buffer_size - 1] = '\0';
+    return 1;
+}
+
+int wing_node_definition_get_longname(node_definition_t def, char* buffer, size_t buffer_size) {
+    if (!def || !buffer || buffer_size == 0) return 0;
+    strncpy(buffer, def->def.longname.c_str(), buffer_size - 1);
+    buffer[buffer_size - 1] = '\0';
+    return 1;
+}
+
+float wing_node_definition_get_min_float(node_definition_t def) {
+    return def ? def->def.minFloat : 0.0f;
+}
+
+float wing_node_definition_get_max_float(node_definition_t def) {
+    return def ? def->def.maxFloat : 0.0f;
+}
+
+uint32_t wing_node_definition_get_steps(node_definition_t def) {
+    return def ? def->def.steps : 0;
+}
+
+int32_t wing_node_definition_get_min_int(node_definition_t def) {
+    return def ? def->def.minInt : 0;
+}
+
+int32_t wing_node_definition_get_max_int(node_definition_t def) {
+    return def ? def->def.maxInt : 0;
+}
+
+uint16_t wing_node_definition_get_max_string_len(node_definition_t def) {
+    return def ? def->def.maxStringLen : 0;
+}
+
+size_t wing_node_definition_get_string_enum_count(node_definition_t def) {
+    return def ? def->def.stringEnum.size() : 0;
+}
+
+int wing_node_definition_get_string_enum_item(node_definition_t def, size_t index,
+                                            char* item_buffer, size_t item_buffer_size,
+                                            char* longitem_buffer, size_t longitem_buffer_size) {
+    if (!def || index >= def->def.stringEnum.size() || 
+        !item_buffer || item_buffer_size == 0 ||
+        !longitem_buffer || longitem_buffer_size == 0) {
+        return 0;
+    }
+    
+    const auto& item = def->def.stringEnum[index];
+    strncpy(item_buffer, item.item.c_str(), item_buffer_size - 1);
+    item_buffer[item_buffer_size - 1] = '\0';
+    
+    strncpy(longitem_buffer, item.longitem.c_str(), longitem_buffer_size - 1);
+    longitem_buffer[longitem_buffer_size - 1] = '\0';
+    
+    return 1;
+}
+
+size_t wing_node_definition_get_float_enum_count(node_definition_t def) {
+    return def ? def->def.floatEnum.size() : 0;
+}
+
+int wing_node_definition_get_float_enum_item(node_definition_t def, size_t index,
+                                           float* item_value,
+                                           char* longitem_buffer, size_t longitem_buffer_size) {
+    if (!def || index >= def->def.floatEnum.size() || 
+        !item_value || !longitem_buffer || longitem_buffer_size == 0) {
+        return 0;
+    }
+    
+    const auto& item = def->def.floatEnum[index];
+    *item_value = item.item;
+    
+    strncpy(longitem_buffer, item.longitem.c_str(), longitem_buffer_size - 1);
+    longitem_buffer[longitem_buffer_size - 1] = '\0';
+    
+    return 1;
+}

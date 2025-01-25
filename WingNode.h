@@ -38,6 +38,7 @@ struct FloatEnumItem {
 };
 
 struct NodeDefinition {
+private:
     uint32_t                    parentId;
     uint32_t                    id;
     uint16_t                    index;
@@ -53,6 +54,24 @@ struct NodeDefinition {
     std::vector<StringEnumItem> stringEnum;
     std::vector<FloatEnumItem>  floatEnum;
     uint16_t                    maxStringLen;
+
+public:
+    // Make C wrapper functions friends so they can access private members
+    friend uint32_t wing_node_definition_get_parent_id(node_definition_t);
+    friend uint32_t wing_node_definition_get_id(node_definition_t);
+    friend uint16_t wing_node_definition_get_index(node_definition_t);
+    friend int wing_node_definition_get_name(node_definition_t, char*, size_t);
+    friend int wing_node_definition_get_longname(node_definition_t, char*, size_t);
+    friend float wing_node_definition_get_min_float(node_definition_t);
+    friend float wing_node_definition_get_max_float(node_definition_t);
+    friend uint32_t wing_node_definition_get_steps(node_definition_t);
+    friend int32_t wing_node_definition_get_min_int(node_definition_t);
+    friend int32_t wing_node_definition_get_max_int(node_definition_t);
+    friend uint16_t wing_node_definition_get_max_string_len(node_definition_t);
+    friend size_t wing_node_definition_get_string_enum_count(node_definition_t);
+    friend int wing_node_definition_get_string_enum_item(node_definition_t, size_t, char*, size_t, char*, size_t);
+    friend size_t wing_node_definition_get_float_enum_count(node_definition_t);
+    friend int wing_node_definition_get_float_enum_item(node_definition_t, size_t, float*, char*, size_t);
 
     WingNode::Type          getType() const;
     WingNode::Unit          getUnit() const;
