@@ -52,6 +52,16 @@ void wing_console_request_node_data(WingConsoleHandle console, uint32_t id);
 // Discovery functions
 int wing_console_discover(WingDiscoveryInfo* info_array, size_t max_count, int stop_on_first);
 
+// Callback function types
+typedef void (*WingRequestEndCallback)(void* user_data);
+typedef void (*WingNodeDefinitionCallback)(const WingNodeDefinition* def, void* user_data);
+typedef void (*WingNodeDataCallback)(uint32_t id, NodeDataHandle data, void* user_data);
+
+// Callback setting functions
+void wing_console_set_request_end_callback(WingConsoleHandle console, WingRequestEndCallback callback, void* user_data);
+void wing_console_set_node_definition_callback(WingConsoleHandle console, WingNodeDefinitionCallback callback, void* user_data);
+void wing_console_set_node_data_callback(WingConsoleHandle console, WingNodeDataCallback callback, void* user_data);
+
 // Node data functions
 NodeDataHandle wing_node_data_create();
 void wing_node_data_destroy(NodeDataHandle data);
