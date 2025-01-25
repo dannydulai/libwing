@@ -5,6 +5,9 @@ consoles. It provides functionality for discovering Wing consoles on the
 network, connecting to them, reading/writing console parameters, and receiving
 any changes made on the mixer itself.
 
+There is a C wrapper for this library. It generally follows the C++ API. You
+can find it in `wing_c_api.h`.
+
 ## Basic Concepts
 
 The Wing console exposes its functionality through a tree of nodes. Each node has:

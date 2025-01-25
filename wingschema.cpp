@@ -44,39 +44,39 @@ printNode(int nodeId, bool recurs)
     if (!def.longname.empty()) parts.push_back(format("\"longname\": \"{}\"", def.longname));
 
     switch (def.getType()) {
-        case NODE_TYPE_NODE:              parts.push_back("\"type\": \"node\"");              break;
-        case NODE_TYPE_LINEAR_FLOAT:      parts.push_back("\"type\": \"linear float\"");      break;
-        case NODE_TYPE_LOGARITHMIC_FLOAT: parts.push_back("\"type\": \"log float\""); break;
-        case NODE_TYPE_FADER_LEVEL:       parts.push_back("\"type\": \"fader level\"");       break;
-        case NODE_TYPE_INTEGER:           parts.push_back("\"type\": \"integer\"");           break;
-        case NODE_TYPE_STRING_ENUM:       parts.push_back("\"type\": \"string enum\"");       break;
-        case NODE_TYPE_FLOAT_ENUM:        parts.push_back("\"type\": \"float enum\"");        break;
-        case NODE_TYPE_STRING:            parts.push_back("\"type\": \"string\"");            break;
+        case WingNode::TYPE_NODE:              parts.push_back("\"type\": \"node\"");              break;
+        case WingNode::TYPE_LINEAR_FLOAT:      parts.push_back("\"type\": \"linear float\"");      break;
+        case WingNode::TYPE_LOGARITHMIC_FLOAT: parts.push_back("\"type\": \"log float\""); break;
+        case WingNode::TYPE_FADER_LEVEL:       parts.push_back("\"type\": \"fader level\"");       break;
+        case WingNode::TYPE_INTEGER:           parts.push_back("\"type\": \"integer\"");           break;
+        case WingNode::TYPE_STRING_ENUM:       parts.push_back("\"type\": \"string enum\"");       break;
+        case WingNode::TYPE_FLOAT_ENUM:        parts.push_back("\"type\": \"float enum\"");        break;
+        case WingNode::TYPE_STRING:            parts.push_back("\"type\": \"string\"");            break;
     }
     switch (def.getUnit()) {
-        case NODE_UNIT_NONE:         /*parts.push_back("\"unit\": \"none\"");*/ break;
-        case NODE_UNIT_DB:           parts.push_back("\"unit\": \"db\"");       break;
-        case NODE_UNIT_PERCENT:      parts.push_back("\"unit\": \"%\"");        break;
-        case NODE_UNIT_MILLISECONDS: parts.push_back("\"unit\": \"ms\"");       break;
-        case NODE_UNIT_HERTZ:        parts.push_back("\"unit\": \"Hz\"");       break;
-        case NODE_UNIT_METERS:       parts.push_back("\"unit\": \"meters\"");   break;
-        case NODE_UNIT_SECONDS:      parts.push_back("\"unit\": \"seconds\"");  break;
-        case NODE_UNIT_OCTAVES:      parts.push_back("\"unit\": \"octaves\"");  break;
+        case WingNode::UNIT_NONE:         /*parts.push_back("\"unit\": \"none\"");*/ break;
+        case WingNode::UNIT_DB:           parts.push_back("\"unit\": \"db\"");       break;
+        case WingNode::UNIT_PERCENT:      parts.push_back("\"unit\": \"%\"");        break;
+        case WingNode::UNIT_MILLISECONDS: parts.push_back("\"unit\": \"ms\"");       break;
+        case WingNode::UNIT_HERTZ:        parts.push_back("\"unit\": \"Hz\"");       break;
+        case WingNode::UNIT_METERS:       parts.push_back("\"unit\": \"meters\"");   break;
+        case WingNode::UNIT_SECONDS:      parts.push_back("\"unit\": \"seconds\"");  break;
+        case WingNode::UNIT_OCTAVES:      parts.push_back("\"unit\": \"octaves\"");  break;
     }
     if (def.isReadOnly()) {
         parts.push_back("\"readOnly\": true");
     }
 
-    if (def.getType() == NODE_TYPE_STRING) {
+    if (def.getType() == WingNode::TYPE_STRING) {
         parts.push_back(format("\"maxStringLen\": {},", def.maxStringLen));
-    } else if (def.getType() == NODE_TYPE_LINEAR_FLOAT || def.getType() == NODE_TYPE_LOGARITHMIC_FLOAT) {
+    } else if (def.getType() == WingNode::TYPE_LINEAR_FLOAT || def.getType() == WingNode::TYPE_LOGARITHMIC_FLOAT) {
         parts.push_back(format("\"minFloat\": {}, ", def.minFloat));
         parts.push_back(format("\"maxFloat\": {}, ", def.maxFloat));
         parts.push_back(format("\"steps\": {}, ", def.steps));
-    } else if (def.getType() == NODE_TYPE_INTEGER) {
+    } else if (def.getType() == WingNode::TYPE_INTEGER) {
         parts.push_back(format("\"minInt\": {}, ", def.minInt));
         parts.push_back(format("\"maxInt\": {}, ", def.maxInt));
-    } else if (def.getType() == NODE_TYPE_STRING_ENUM && !def.stringEnum.empty()) {
+    } else if (def.getType() == WingNode::TYPE_STRING_ENUM && !def.stringEnum.empty()) {
         vector<string> parts2;
         string parts2str;
 
@@ -92,7 +92,7 @@ printNode(int nodeId, bool recurs)
             parts2str += parts2[k];
         }
         parts.push_back(format("\"enumOptions\": [ {} ]", parts2str));
-    } else if (def.getType() == NODE_TYPE_FLOAT_ENUM && !def.floatEnum.empty()) {
+    } else if (def.getType() == WingNode::TYPE_FLOAT_ENUM && !def.floatEnum.empty()) {
         vector<string> parts2;
         string parts2str;
 
@@ -139,7 +139,7 @@ req(int nodeId, WingConsole &console)
     if (done == 0) {
         for (int child : _nodeParentToChildren[nodeId]) {
             auto def = _nodeIdToDef[child];
-            if (def.getType() == NODE_TYPE_NODE) {
+            if (def.getType() == WingNode::TYPE_NODE) {
                 if (_nodeParentToChildren.find(child) == _nodeParentToChildren.end()) {
                     _nodeParentToChildren[def.id];
                     done++;
@@ -152,7 +152,7 @@ req(int nodeId, WingConsole &console)
     if (done == 0) {
         for (int child : _nodeParentToChildren[nodeId]) {
             auto def = _nodeIdToDef[child];
-            if (def.getType() == NODE_TYPE_NODE) {
+            if (def.getType() == WingNode::TYPE_NODE) {
                 int v = req(child, console);
                 done += v;
                 if (v)

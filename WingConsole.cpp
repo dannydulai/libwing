@@ -18,11 +18,8 @@
 using namespace std;
 using namespace std::chrono;
 
-class ConnectionClosedException : public std::exception { };
-
-class WingConsolePrivate {
-public:
-    int           _sock;
+struct WingConsolePrivate {
+    int           _sock = -1;
 
     unsigned char _rx_buf[2048];
     size_t        _rx_buf_tail = 0; // Index for reading
@@ -32,6 +29,11 @@ public:
 
     unsigned char _getChar();
     void          _decode(int &channel, unsigned char &val);
+
+    ~WingConsolePrivate() {
+        if (_sock >= 0)
+            ::shutdown(_sock, SHUT_RDWR);
+    }
 };
 
 map<uint32_t, NodeData> _nodeData;
@@ -131,6 +133,10 @@ WingConsole::discover(bool stopOnFirst)
     return discovered;
 }
 
+WingConsole::~WingConsole() {
+    delete priv;
+}
+
 WingConsole
 WingConsole::connect(const string &ip)
 {
@@ -164,7 +170,6 @@ WingConsole::connect(const string &ip)
 
     if (::connect(console.priv->_sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         int err = errno;
-        ::close(console.priv->_sock);
         throw std::system_error(err, std::system_category(), "Failed to connect to console");
     }
     printf("FOO2\n"); fflush(stdout);
@@ -195,12 +200,6 @@ formatId(int id, char *buf, char prefix, char suffix) {
     return buf - b;
 }
 
-void
-WingConsole::close()
-{
-    shutdown(priv->_sock, SHUT_RDWR);
-}
-
 static void
 keepAlive(int sock)
 {
@@ -211,7 +210,7 @@ keepAlive(int sock)
     if (elapsed_seconds.count() > TIMEOUT_KEEP_ALIVE) {
         unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
         // if (::send(sock, buf, sizeof(buf), 0) != sizeof(buf)) {
-        //     throw UnixErrorException("Failed to send message", errno);
+        //     throw std::system_error(errno, std::system_category(), "Failed to send keepalive message");
         // }
         _keepAliveTime = system_clock::now();
     }
@@ -233,7 +232,7 @@ WingConsolePrivate::_getChar()
                     throw std::system_error(errno, std::system_category(), "Error reading from socket");
                 }
             } else if (n == 0) {
-                throw ConnectionClosedException();
+                throw std::system_error(ECONNRESET, std::system_category(), "Connection closed");
             }
             _rx_buf_tail = 0;
             _rx_buf_size = n;
@@ -299,25 +298,22 @@ WingConsole::read()
             read8(cmd);
 
             if (cmd == 0x00) {
-                //cout << "FALSE" << endl;
                 if (_nodeData[currentNode].setInt(0)) {
                     onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0x01) {
-                //cout << "TRUE" << endl;
                 if (_nodeData[currentNode].setInt(1)) {
                     onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd >= 0x02 && cmd <= 0x3f) {
-                //cout << "FAST INT:" << (int)cmd << endl;
                 if (_nodeData[currentNode].setInt((int)cmd)) {
                     onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd >= 0x40 && cmd <= 0x7f) {
-                cout << "REQUEST: FAST NODE INDEX:" << (int)(cmd-0x40+1) << endl;
+                cerr << "REQUEST: FAST NODE INDEX:" << (int)(cmd-0x40+1) << endl;
 
             } else if (cmd >= 0x80 && cmd <= 0xbf) {
                 int len = (int)(cmd-0x80+1);
@@ -327,17 +323,15 @@ WingConsole::read()
                     read8(ch);
                     s += ch;
                 }
-                // cout << "FAST STRING:" << len << ":" << s << endl;
                 if (_nodeData[currentNode].setString(s)) {
                     onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd >= 0xc0 && cmd <= 0xcf) {
                 int len = (int)(cmd-0xc0+1);
-                cout << "REQUEST: FAST NODE NAME:" << (int)(cmd-0xc0+1) << endl;
+                cerr << "REQUEST: FAST NODE NAME:" << (int)(cmd-0xc0+1) << endl;
 
             } else if (cmd == 0xd0) {
-                //cout << "EMPTY STRING" << endl;
                 if (_nodeData[currentNode].setString("")) {
                     onNodeData(currentNode, _nodeData[currentNode]);
                 }
@@ -352,7 +346,6 @@ WingConsole::read()
                     read8(ch);
                     s += ch;
                 }
-                // cout << "STRING:" << len << ":" << s << endl;
                 if (_nodeData[currentNode].setString(s)) {
                     onNodeData(currentNode, _nodeData[currentNode]);
                 }
@@ -360,7 +353,7 @@ WingConsole::read()
             } else if (cmd == 0xd2) {
                 read16(tmp);
                 tmp++;
-                cout << "REQUEST: NODE INDEX: " << tmp << endl;
+                cerr << "REQUEST: NODE INDEX: " << tmp << endl;
 
             } else if (cmd == 0xd3) {
                 read16(tmp);
@@ -384,7 +377,6 @@ WingConsole::read()
             } else if (cmd == 0xd6) {
                 float f;
                 readfloat(f);
-                //cout << "RAW FLOAT: " << f << endl;
                 if (_nodeData[currentNode].setFloat(f)) {
                     onNodeData(currentNode, _nodeData[currentNode]);
                 }
@@ -393,24 +385,24 @@ WingConsole::read()
                 read32(currentNode);
 
             } else if (cmd == 0xd8) {
-                cout << "??????? CLICK" << endl;
+                cerr << "??????? CLICK" << endl;
 
             } else if (cmd == 0xd9) {
                 char step;
                 read8(step);
-                cout << "??????? STEP: " << (int)step << endl;
+                cerr << "??????? STEP: " << (int)step << endl;
 
             } else if (cmd == 0xda) {
-                cout << "REQUEST: TREE: GOTO ROOT" << endl;
+                cerr << "REQUEST: TREE: GOTO ROOT" << endl;
 
             } else if (cmd == 0xdb) {
-                cout << "REQUEST: TREE: GO UP 1" << endl;
+                cerr << "REQUEST: TREE: GO UP 1" << endl;
 
             } else if (cmd == 0xdc) {
-                cout << "REQUEST: DATA" << endl;
+                cerr << "REQUEST: DATA" << endl;
 
             } else if (cmd == 0xdd) {
-                cout << "REQUEST: CURRENT NODE DEFINITION" << endl;
+                cerr << "REQUEST: CURRENT NODE DEFINITION" << endl;
 
             } else if (cmd == 0xde) {
                 onRequestEnd();
@@ -488,12 +480,14 @@ WingConsole::read()
 
                 onNodeDefinition(node);
             } else {
-                cout << "Received UNKNOWN BYTE: " << hex << setw(2) << setfill('0') << (int)cmd << endl;
-
+                cerr << "Received UNKNOWN BYTE: " << hex << setw(2) << setfill('0') << (int)cmd << endl;
             }
         }
-    } catch (ConnectionClosedException &e) {
-        return;
+    } catch (std::system_error &e) {
+        if (e.code().value() == ECONNRESET) {
+            return;
+        }
+        throw;
     }
 }
 
@@ -567,7 +561,7 @@ WingConsole::setFloat(uint32_t id, float value) const
     buf[len++] = v & 0xff;
 
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw UnixErrorException("Failed to send set-node-int message", errno);
+        throw std::system_error(errno, std::system_category(), "Failed to send set-node-int message");
     }
 }
 
@@ -595,6 +589,6 @@ WingConsole::setInt(uint32_t id, int32_t value) const
         buf[len++] = value & 0xff;
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw UnixErrorException("Failed to send set-node-int message", errno);
+        throw std::system_error(errno, std::system_category(), "Failed to send set-node-int message");
     }
 }

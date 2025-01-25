@@ -16,25 +16,33 @@ struct DiscoveryInfo {
 
 class WingConsolePrivate;
 class WingConsole {
-    WingConsolePrivate *priv;
-
 public:
-    void  read();
-    void close();
+    // read() will process messages from the Wing device and block until the
+    // connection is closed
+    void read(); // be sure to set callbacks below before calling read()
 
-    void setString(uint32_t id, const std::string& value) const;
-    void setFloat (uint32_t id, float              value) const;
-    void setInt   (uint32_t id, int                value) const;
-
-    void requestNodeDefinition(uint32_t id) const;
-    void       requestNodeData(uint32_t id) const;
-
-    std::function<void(void)>               onRequestEnd;
-    std::function<void(NodeDefinition)>     onNodeDefinition;
+    // set these before calling read() to get data (if you are requesting it)
+    std::function<void(void)> onRequestEnd;
+    std::function<void(NodeDefinition)> onNodeDefinition;
     std::function<void(uint32_t, NodeData)> onNodeData;
 
+    // set the value of a node
+    void setString(uint32_t id, const std::string &value) const;
+    void setFloat(uint32_t id, float value) const;
+    void setInt(uint32_t id, int value) const;
+
+    // request information from the Wing device
+    void requestNodeDefinition(uint32_t id) const;
+    void requestNodeData(uint32_t id) const;
+
+    // discover and connect to a Wing device
     static std::vector<DiscoveryInfo> discover(bool stopOnFirst = true);
-    static WingConsole                 connect(const std::string &ip);
+    static WingConsole connect(const std::string &ip);
+
+    ~WingConsole();
+
+private:
+    WingConsolePrivate *priv;
 };
 
 #endif // __WINGCONSOLE_H

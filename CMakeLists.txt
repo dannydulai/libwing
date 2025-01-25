@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(wing STATIC
     WingConsole.cpp
     WingNode.cpp
+    wing_c_api.cpp
 )
 
 # Create executable that uses the library

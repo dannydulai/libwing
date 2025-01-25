@@ -39,6 +39,7 @@ main()
 
     cout << "Monitoring for changes..." << endl;
     console.read();
+    cout << "... device disconnected." << endl;
 
     return 0;
 }

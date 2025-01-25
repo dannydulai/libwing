@@ -2,16 +2,16 @@
 
 #include "WingNode.h"
 
-NodeType
+WingNode::Type
 NodeDefinition::getType() const
 {
-    return (NodeType)((flags >> 4) & 0x0F);
+    return (WingNode::Type)((flags >> 4) & 0x0F);
 }
 
-NodeUnit
+WingNode::Unit
 NodeDefinition::getUnit() const
 {
-    return (NodeUnit)(flags & 0x0F);
+    return (WingNode::Unit)(flags & 0x0F);
 }
 
 bool
