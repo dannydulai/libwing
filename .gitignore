@@ -1,0 +1,8 @@
+.aider*
+.env
+.clangd
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+Makefile
+build/
