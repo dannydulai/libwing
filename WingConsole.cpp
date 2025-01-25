@@ -18,6 +18,8 @@
 using namespace std;
 using namespace std::chrono;
 
+class ConnectionClosedException : public std::exception { };
+
 class WingConsolePrivate {
 public:
     int           _sock;
@@ -107,11 +109,14 @@ WingConsole::discover(bool stopOnFirst)
             got = i;
             continue;
 
+        } else if (received == 0) {
+            break;
+
         } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 usleep(500 * 1000); // 500ms
             } else {
-                throw runtime_error("Error receiving discovery response");
+                throw std::system_error(errno, std::system_category(), "Error receiving discovery response");
                 break;
             }
         }
@@ -130,11 +135,14 @@ WingConsole
 WingConsole::connect(const string &ip)
 {
     WingConsole console;
+    printf("FOO-2\n"); fflush(stdout);
+    console.priv = new WingConsolePrivate();
     console.priv->_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (console.priv->_sock < 0) {
-        throw runtime_error("Failed to create socket");
+        throw UnixErrorException("Failed to create socket", errno);
     }
 
+    printf("FOO-1\n"); fflush(stdout);
 #if _WIN32
     DWORD timeout = TIMEOUT_KEEP_ALIVE * 1000;
     setsockopt(console._sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof timeout);
@@ -145,23 +153,31 @@ WingConsole::connect(const string &ip)
     setsockopt(console.priv->_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 #endif
 
+    printf("FOO0\n"); fflush(stdout);
     struct sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(2222);  // console WING console port
     serverAddr.sin_addr.s_addr = inet_addr(ip.c_str());
 
+    printf("FOO1\n"); fflush(stdout);
+
     if (::connect(console.priv->_sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+        int err = errno;
         ::close(console.priv->_sock);
-        throw runtime_error("Failed to connect to console");
+        throw UnixErrorException("Failed to connect to console", err);
     }
+    printf("FOO2\n"); fflush(stdout);
 
     _keepAliveTime = system_clock::now();
 
+    printf("FOO3\n"); fflush(stdout);
     unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
+    printf("FOO4\n"); fflush(stdout);
     if (::send(console.priv->_sock, buf, sizeof(buf), 0) != sizeof(buf)) {
-        throw runtime_error("Failed to send message");
+        throw UnixErrorException("Failed to send message", errno);
     }
+    printf("FOO5\n"); fflush(stdout);
 
     return console;
 }
@@ -194,9 +210,9 @@ keepAlive(int sock)
     duration<double> elapsed_seconds = now-_keepAliveTime;
     if (elapsed_seconds.count() > TIMEOUT_KEEP_ALIVE) {
         unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
-        if (::send(sock, buf, sizeof(buf), 0) != sizeof(buf)) {
-            throw runtime_error("Failed to send message");
-        }
+        // if (::send(sock, buf, sizeof(buf), 0) != sizeof(buf)) {
+        //     throw UnixErrorException("Failed to send message", errno);
+        // }
         _keepAliveTime = system_clock::now();
     }
 }
@@ -209,13 +225,15 @@ WingConsolePrivate::_getChar()
     if (_rx_buf_size == 0) {
         while (true) {
             ssize_t n = ::recv(_sock, _rx_buf, sizeof(_rx_buf), 0);
-            if (n <= 0) {
+            if (n < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     keepAlive(_sock);
                     continue;
                 } else {
-                    throw runtime_error(format("Connection closed or error: {}", strerror(errno)));
+                    throw UnixErrorException("Error reading from socket", errno);
                 }
+            } else if (n == 0) {
+                throw ConnectionClosedException();
             }
             _rx_buf_tail = 0;
             _rx_buf_size = n;
@@ -272,206 +290,210 @@ WingConsolePrivate::_decode(int &channel, unsigned char &val)
 void
 WingConsole::read()
 {
-    int currentNode = -1;
+    try {
+        int currentNode = -1;
 
-    while (true) {
-        int tmp, channel;
-        unsigned char cmd;
-        read8(cmd);
+        while (true) {
+            int tmp, channel;
+            unsigned char cmd;
+            read8(cmd);
 
-        if (cmd == 0x00) {
-            //cout << "FALSE" << endl;
-            if (_nodeData[currentNode].setInt(0)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd == 0x01) {
-            //cout << "TRUE" << endl;
-            if (_nodeData[currentNode].setInt(1)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd >= 0x02 && cmd <= 0x3f) {
-            //cout << "FAST INT:" << (int)cmd << endl;
-            if (_nodeData[currentNode].setInt((int)cmd)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd >= 0x40 && cmd <= 0x7f) {
-            cout << "REQUEST: FAST NODE INDEX:" << (int)(cmd-0x40+1) << endl;
-
-        } else if (cmd >= 0x80 && cmd <= 0xbf) {
-            int len = (int)(cmd-0x80+1);
-            string s;
-            for (int j = 0; j < len; j++) {
-                unsigned char ch;
-                read8(ch);
-                s += ch;
-            }
-            // cout << "FAST STRING:" << len << ":" << s << endl;
-            if (_nodeData[currentNode].setString(s)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd >= 0xc0 && cmd <= 0xcf) {
-            int len = (int)(cmd-0xc0+1);
-            cout << "REQUEST: FAST NODE NAME:" << (int)(cmd-0xc0+1) << endl;
-
-        } else if (cmd == 0xd0) {
-            //cout << "EMPTY STRING" << endl;
-            if (_nodeData[currentNode].setString("")) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd == 0xd1) {
-            int len;
-            read8(len);
-            len++;
-            string s;
-            for (int j = 0; j < len; j++) {
-                unsigned char ch;
-                read8(ch);
-                s += ch;
-            }
-            // cout << "STRING:" << len << ":" << s << endl;
-            if (_nodeData[currentNode].setString(s)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd == 0xd2) {
-            read16(tmp);
-            tmp++;
-            cout << "REQUEST: NODE INDEX: " << tmp << endl;
-
-        } else if (cmd == 0xd3) {
-            read16(tmp);
-            if (_nodeData[currentNode].setInt(tmp)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd == 0xd4) {
-            read32(tmp);
-            if (_nodeData[currentNode].setInt(tmp)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd == 0xd5) {
-            float f;
-            readfloat(f);
-            if (_nodeData[currentNode].setFloat(f)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd == 0xd6) {
-            float f;
-            readfloat(f);
-            //cout << "RAW FLOAT: " << f << endl;
-            if (_nodeData[currentNode].setFloat(f)) {
-                onNodeData(currentNode, _nodeData[currentNode]);
-            }
-
-        } else if (cmd == 0xd7) {
-            read32(currentNode);
-
-        } else if (cmd == 0xd8) {
-            cout << "??????? CLICK" << endl;
-
-        } else if (cmd == 0xd9) {
-            char step;
-            read8(step);
-            cout << "??????? STEP: " << (int)step << endl;
-
-        } else if (cmd == 0xda) {
-            cout << "REQUEST: TREE: GOTO ROOT" << endl;
-
-        } else if (cmd == 0xdb) {
-            cout << "REQUEST: TREE: GO UP 1" << endl;
-
-        } else if (cmd == 0xdc) {
-            cout << "REQUEST: DATA" << endl;
-
-        } else if (cmd == 0xdd) {
-            cout << "REQUEST: CURRENT NODE DEFINITION" << endl;
-
-        } else if (cmd == 0xde) {
-            onRequestEnd();
-
-        } else if (cmd == 0xdf) { // node definition response
-            NodeDefinition node;
-            int len;
-            read16(len);
-            if (len == 0) {
-                read32(len);
-            }
-            read32(node.parentId);
-            read32(node.id);
-            read16(node.index);
-            read8(len);
-            for (int j = 0; j < len; j++) {
-                unsigned char ch;
-                read8(ch);
-                node.name += ch;
-            }
-            read8(len);
-            for (int j = 0; j < len; j++) {
-                unsigned char ch;
-                read8(ch);
-                node.longname += ch;
-            }
-
-            read16(node.flags);
-
-            if (node.getType() == NODE_TYPE_STRING) {
-                read16(node.maxStringLen);
-            } else if (node.getType() == NODE_TYPE_LINEAR_FLOAT || node.getType() == NODE_TYPE_LOGARITHMIC_FLOAT) {
-                readfloat(node.minFloat);
-                readfloat(node.maxFloat);
-                read32(node.steps);
-            } else if (node.getType() == NODE_TYPE_INTEGER) {
-                read32(node.minInt);
-                read32(node.maxInt);
-            } else if (node.getType() == NODE_TYPE_STRING_ENUM) {
-                int num;
-                read16(num);
-                for (int k = 0; k < num; k++) {
-                    StringEnumItem item;
-                    int len;
-                    read8(len);
-                    for (int j = 0; j < len; j++) {
-                        unsigned char ch;
-                        read8(ch);
-                        item.item += ch;
-                    }
-                    read8(len);
-                    for (int j = 0; j < len; j++) {
-                        unsigned char ch;
-                        read8(ch);
-                        item.longitem += ch;
-                    }
-                    node.stringEnum.push_back(item);
+            if (cmd == 0x00) {
+                //cout << "FALSE" << endl;
+                if (_nodeData[currentNode].setInt(0)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
                 }
-            } else if (node.getType() == NODE_TYPE_FLOAT_ENUM) {
-                int num;
-                read16(num);
-                for (int k = 0; k < num; k++) {
-                    FloatEnumItem item;
-                    readfloat(item.item);
-                    int len;
-                    read8(len);
-                    for (int j = 0; j < len; j++) {
-                        unsigned char ch;
-                        read8(ch);
-                        item.longitem += ch;
-                    }
-                    node.floatEnum.push_back(item);
+
+            } else if (cmd == 0x01) {
+                //cout << "TRUE" << endl;
+                if (_nodeData[currentNode].setInt(1)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
                 }
+
+            } else if (cmd >= 0x02 && cmd <= 0x3f) {
+                //cout << "FAST INT:" << (int)cmd << endl;
+                if (_nodeData[currentNode].setInt((int)cmd)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd >= 0x40 && cmd <= 0x7f) {
+                cout << "REQUEST: FAST NODE INDEX:" << (int)(cmd-0x40+1) << endl;
+
+            } else if (cmd >= 0x80 && cmd <= 0xbf) {
+                int len = (int)(cmd-0x80+1);
+                string s;
+                for (int j = 0; j < len; j++) {
+                    unsigned char ch;
+                    read8(ch);
+                    s += ch;
+                }
+                // cout << "FAST STRING:" << len << ":" << s << endl;
+                if (_nodeData[currentNode].setString(s)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd >= 0xc0 && cmd <= 0xcf) {
+                int len = (int)(cmd-0xc0+1);
+                cout << "REQUEST: FAST NODE NAME:" << (int)(cmd-0xc0+1) << endl;
+
+            } else if (cmd == 0xd0) {
+                //cout << "EMPTY STRING" << endl;
+                if (_nodeData[currentNode].setString("")) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd == 0xd1) {
+                int len;
+                read8(len);
+                len++;
+                string s;
+                for (int j = 0; j < len; j++) {
+                    unsigned char ch;
+                    read8(ch);
+                    s += ch;
+                }
+                // cout << "STRING:" << len << ":" << s << endl;
+                if (_nodeData[currentNode].setString(s)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd == 0xd2) {
+                read16(tmp);
+                tmp++;
+                cout << "REQUEST: NODE INDEX: " << tmp << endl;
+
+            } else if (cmd == 0xd3) {
+                read16(tmp);
+                if (_nodeData[currentNode].setInt(tmp)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd == 0xd4) {
+                read32(tmp);
+                if (_nodeData[currentNode].setInt(tmp)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd == 0xd5) {
+                float f;
+                readfloat(f);
+                if (_nodeData[currentNode].setFloat(f)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd == 0xd6) {
+                float f;
+                readfloat(f);
+                //cout << "RAW FLOAT: " << f << endl;
+                if (_nodeData[currentNode].setFloat(f)) {
+                    onNodeData(currentNode, _nodeData[currentNode]);
+                }
+
+            } else if (cmd == 0xd7) {
+                read32(currentNode);
+
+            } else if (cmd == 0xd8) {
+                cout << "??????? CLICK" << endl;
+
+            } else if (cmd == 0xd9) {
+                char step;
+                read8(step);
+                cout << "??????? STEP: " << (int)step << endl;
+
+            } else if (cmd == 0xda) {
+                cout << "REQUEST: TREE: GOTO ROOT" << endl;
+
+            } else if (cmd == 0xdb) {
+                cout << "REQUEST: TREE: GO UP 1" << endl;
+
+            } else if (cmd == 0xdc) {
+                cout << "REQUEST: DATA" << endl;
+
+            } else if (cmd == 0xdd) {
+                cout << "REQUEST: CURRENT NODE DEFINITION" << endl;
+
+            } else if (cmd == 0xde) {
+                onRequestEnd();
+
+            } else if (cmd == 0xdf) { // node definition response
+                NodeDefinition node;
+                int len;
+                read16(len);
+                if (len == 0) {
+                    read32(len);
+                }
+                read32(node.parentId);
+                read32(node.id);
+                read16(node.index);
+                read8(len);
+                for (int j = 0; j < len; j++) {
+                    unsigned char ch;
+                    read8(ch);
+                    node.name += ch;
+                }
+                read8(len);
+                for (int j = 0; j < len; j++) {
+                    unsigned char ch;
+                    read8(ch);
+                    node.longname += ch;
+                }
+
+                read16(node.flags);
+
+                if (node.getType() == WingNode::TYPE_STRING) {
+                    read16(node.maxStringLen);
+                } else if (node.getType() == WingNode::TYPE_LINEAR_FLOAT || node.getType() == WingNode::TYPE_LOGARITHMIC_FLOAT) {
+                    readfloat(node.minFloat);
+                    readfloat(node.maxFloat);
+                    read32(node.steps);
+                } else if (node.getType() == WingNode::TYPE_INTEGER) {
+                    read32(node.minInt);
+                    read32(node.maxInt);
+                } else if (node.getType() == WingNode::TYPE_STRING_ENUM) {
+                    int num;
+                    read16(num);
+                    for (int k = 0; k < num; k++) {
+                        StringEnumItem item;
+                        int len;
+                        read8(len);
+                        for (int j = 0; j < len; j++) {
+                            unsigned char ch;
+                            read8(ch);
+                            item.item += ch;
+                        }
+                        read8(len);
+                        for (int j = 0; j < len; j++) {
+                            unsigned char ch;
+                            read8(ch);
+                            item.longitem += ch;
+                        }
+                        node.stringEnum.push_back(item);
+                    }
+                } else if (node.getType() == WingNode::TYPE_FLOAT_ENUM) {
+                    int num;
+                    read16(num);
+                    for (int k = 0; k < num; k++) {
+                        FloatEnumItem item;
+                        readfloat(item.item);
+                        int len;
+                        read8(len);
+                        for (int j = 0; j < len; j++) {
+                            unsigned char ch;
+                            read8(ch);
+                            item.longitem += ch;
+                        }
+                        node.floatEnum.push_back(item);
+                    }
+                }
+
+                onNodeDefinition(node);
+            } else {
+                cout << "Received UNKNOWN BYTE: " << hex << setw(2) << setfill('0') << (int)cmd << endl;
+
             }
-
-            onNodeDefinition(node);
-        } else {
-            cout << "Received UNKNOWN BYTE: " << hex << setw(2) << setfill('0') << (int)cmd << endl;
-
         }
+    } catch (ConnectionClosedException &e) {
+        return;
     }
 }
 
@@ -488,7 +510,7 @@ WingConsole::requestNodeDefinition(uint32_t id) const
         len = formatId(id, buf, 0xd7, 0xdd);
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw runtime_error("Failed to send get-node-definition message");
+        throw UnixErrorException("Failed to send get-node-definition message", errno);
     }
 }
 
@@ -505,7 +527,7 @@ WingConsole::requestNodeData(uint32_t id) const
         len = formatId(id, buf, 0xd7, 0xdc);
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw runtime_error("Failed to send get-node-data message");
+        throw UnixErrorException("Failed to send get-node-data message", errno);
     }
 }
 
@@ -529,7 +551,7 @@ WingConsole::setString(uint32_t id, const string& value) const
         buf[len++] = c;
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw runtime_error("Failed to send set-node-int message");
+        throw UnixErrorException("Failed to send set-node-int message", errno);
     }
 }
 
@@ -545,7 +567,7 @@ WingConsole::setFloat(uint32_t id, float value) const
     buf[len++] = v & 0xff;
 
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw runtime_error("Failed to send set-node-int message");
+        throw UnixErrorException("Failed to send set-node-int message", errno);
     }
 }
 
@@ -573,6 +595,6 @@ WingConsole::setInt(uint32_t id, int32_t value) const
         buf[len++] = value & 0xff;
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw runtime_error("Failed to send set-node-int message");
+        throw UnixErrorException("Failed to send set-node-int message", errno);
     }
 }
