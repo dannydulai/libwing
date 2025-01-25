@@ -11,6 +11,7 @@ extern "C" {
 // Opaque handle types
 typedef struct WingConsole_t* WingConsoleHandle;
 typedef struct NodeData_t* NodeDataHandle;
+typedef struct NodeDefinition_t* NodeDefinitionHandle;
 
 // Discovery info structure
 typedef struct {
@@ -20,22 +21,6 @@ typedef struct {
     char serial[64];
     char firmware[64];
 } WingDiscoveryInfo;
-
-// Node definition structure
-typedef struct {
-    uint32_t parentId;
-    uint32_t id;
-    uint16_t index;
-    char name[64];
-    char longname[128];
-    uint16_t flags;
-    float minFloat;
-    float maxFloat;
-    uint32_t steps;
-    int32_t minInt;
-    int32_t maxInt;
-    uint16_t maxStringLen;
-} WingNodeDefinition;
 
 // Function declarations
 WingConsoleHandle wing_console_connect(const char* ip);
@@ -54,7 +39,7 @@ int wing_console_discover(WingDiscoveryInfo* info_array, size_t max_count, int s
 
 // Callback function types
 typedef void (*WingRequestEndCallback)(void* user_data);
-typedef void (*WingNodeDefinitionCallback)(const WingNodeDefinition* def, void* user_data);
+typedef void (*WingNodeDefinitionCallback)(NodeDefinitionHandle def, void* user_data);
 typedef void (*WingNodeDataCallback)(uint32_t id, NodeDataHandle data, void* user_data);
 
 // Callback setting functions
@@ -63,8 +48,8 @@ void wing_console_set_node_definition_callback(WingConsoleHandle console, WingNo
 void wing_console_set_node_data_callback(WingConsoleHandle console, WingNodeDataCallback callback, void* user_data);
 
 // Node data functions
-NodeDataHandle wing_node_data_create();
-void wing_node_data_destroy(NodeDataHandle data);
+// NodeDataHandle wing_node_data_create();
+// void wing_node_data_destroy(NodeDataHandle data);
 int wing_node_data_get_string(NodeDataHandle data, char* buffer, size_t buffer_size);
 float wing_node_data_get_float(NodeDataHandle data);
 int wing_node_data_get_int(NodeDataHandle data);

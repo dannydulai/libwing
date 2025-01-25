@@ -19,35 +19,14 @@ struct WingConsole_t {
 struct NodeData_t {
     NodeData data;
 };
+struct NodeDefinition_t {
+    NodeDefinition def;
+};
 
 WingConsoleHandle wing_console_connect(const char* ip) {
     try {
         WingConsoleHandle handle = new WingConsole_t();
         handle->console = WingConsole::connect(ip);
-        
-        // Set up C++ callbacks that will forward to C callbacks
-        handle->console.onRequestEnd = [handle]() {
-            if (handle->request_end_cb) {
-                handle->request_end_cb(handle->request_end_user_data);
-            }
-        };
-        
-        handle->console.onNodeDefinition = [handle](NodeDefinition def) {
-            if (handle->node_def_cb) {
-                WingNodeDefinition c_def = {}; // Convert NodeDefinition to C struct
-                // TODO: Fill in c_def fields from def
-                handle->node_def_cb(&c_def, handle->node_def_user_data);
-            }
-        };
-        
-        handle->console.onNodeData = [handle](uint32_t id, NodeData data) {
-            if (handle->node_data_cb) {
-                NodeDataHandle data_handle = new NodeData_t{data};
-                handle->node_data_cb(id, data_handle, handle->node_data_user_data);
-                delete data_handle;
-            }
-        };
-        
         return handle;
     } catch (...) {
         return nullptr;
@@ -58,6 +37,11 @@ void wing_console_set_request_end_callback(WingConsoleHandle console, WingReques
     if (console) {
         console->request_end_cb = callback;
         console->request_end_user_data = user_data;
+        console->console.onRequestEnd = [console]() {
+            if (console->request_end_cb) {
+                console->request_end_cb(console->request_end_user_data);
+            }
+        };
     }
 }
 
@@ -65,6 +49,13 @@ void wing_console_set_node_definition_callback(WingConsoleHandle console, WingNo
     if (console) {
         console->node_def_cb = callback;
         console->node_def_user_data = user_data;
+        console->console.onNodeDefinition = [console](NodeDefinition def) {
+            if (console->node_def_cb) {
+                NodeDefinitionHandle def_handle = new NodeDefinition_t{def};
+                console->node_def_cb(def_handle, console->node_def_user_data);
+                delete def_handle;
+            }
+        };
     }
 }
 
@@ -72,6 +63,13 @@ void wing_console_set_node_data_callback(WingConsoleHandle console, WingNodeData
     if (console) {
         console->node_data_cb = callback;
         console->node_data_user_data = user_data;
+        console->console.onNodeData = [console](uint32_t id, NodeData data) {
+            if (console->node_data_cb) {
+                NodeDataHandle data_handle = new NodeData_t{data};
+                console->node_data_cb(id, data_handle, console->node_data_user_data);
+                delete data_handle;
+            }
+        };
     }
 }
 
@@ -137,13 +135,13 @@ int wing_console_discover(WingDiscoveryInfo* info_array, size_t max_count, int s
     return static_cast<int>(count);
 }
 
-NodeDataHandle wing_node_data_create() {
-    return new NodeData_t();
-}
-
-void wing_node_data_destroy(NodeDataHandle data) {
-    delete data;
-}
+// NodeDataHandle wing_node_data_create() {
+//     return new NodeData_t();
+// }
+//
+// void wing_node_data_destroy(NodeDataHandle data) {
+//     delete data;
+// }
 
 int wing_node_data_get_string(NodeDataHandle data, char* buffer, size_t buffer_size) {
     if (!data || !buffer || buffer_size == 0) {
