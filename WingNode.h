@@ -4,26 +4,28 @@
 #include <map>
 #include <vector>
 
-enum NodeUnit {
-    NODE_UNIT_NONE         = 0,
-    NODE_UNIT_DB           = 1,
-    NODE_UNIT_PERCENT      = 2,
-    NODE_UNIT_MILLISECONDS = 3,
-    NODE_UNIT_HERTZ        = 4,
-    NODE_UNIT_METERS       = 5,
-    NODE_UNIT_SECONDS      = 6,
-    NODE_UNIT_OCTAVES      = 7,
-};
-enum NodeType {
-    NODE_TYPE_NODE              = 0,
-    NODE_TYPE_LINEAR_FLOAT      = 1,
-    NODE_TYPE_LOGARITHMIC_FLOAT = 2,
-    NODE_TYPE_FADER_LEVEL       = 3,
-    NODE_TYPE_INTEGER           = 4,
-    NODE_TYPE_STRING_ENUM       = 5,
-    NODE_TYPE_FLOAT_ENUM        = 6,
-    NODE_TYPE_STRING            = 7
-};
+namespace WingNode {
+    enum Unit {
+        UNIT_NONE         = 0,
+        UNIT_DB           = 1,
+        UNIT_PERCENT      = 2,
+        UNIT_MILLISECONDS = 3,
+        UNIT_HERTZ        = 4,
+        UNIT_METERS       = 5,
+        UNIT_SECONDS      = 6,
+        UNIT_OCTAVES      = 7,
+    };
+    enum Type {
+        TYPE_NODE              = 0,
+        TYPE_LINEAR_FLOAT      = 1,
+        TYPE_LOGARITHMIC_FLOAT = 2,
+        TYPE_FADER_LEVEL       = 3,
+        TYPE_INTEGER           = 4,
+        TYPE_STRING_ENUM       = 5,
+        TYPE_FLOAT_ENUM        = 6,
+        TYPE_STRING            = 7
+    };
+}
 
 struct StringEnumItem {
     std::string item;
@@ -52,8 +54,8 @@ struct NodeDefinition {
     std::vector<FloatEnumItem>  floatEnum;
     uint16_t                    maxStringLen;
 
-    NodeType                getType() const;
-    NodeUnit                getUnit() const;
+    WingNode::Type          getType() const;
+    WingNode::Unit          getUnit() const;
     bool                 isReadOnly() const;
 
     // convert between node names and ids
@@ -62,13 +64,7 @@ struct NodeDefinition {
 };
 
 class NodeData {
-    int         _flags;
-    std::string _s;
-    int         _i;
-    float       _f;
-
 public:
-
     bool        hasString() const;
     std::string getString() const;
     bool        setString(const std::string& s);
@@ -82,6 +78,12 @@ public:
     bool          setInt(int i);
 
     void          clear();
+
+private:
+    int         _flags;
+    std::string _s;
+    int         _i;
+    float       _f;
 };
 
 #endif // __WINGNODE_H
