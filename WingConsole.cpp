@@ -476,7 +476,7 @@ WingConsole::read()
 }
 
 void
-WingConsole::requestNodeDefinition(uint32_t id)
+WingConsole::requestNodeDefinition(uint32_t id) const
 {
     char buf[16];
     int len;
@@ -493,7 +493,7 @@ WingConsole::requestNodeDefinition(uint32_t id)
 }
 
 void
-WingConsole::requestNodeData(uint32_t id)
+WingConsole::requestNodeData(uint32_t id) const
 {
     char buf[16];
     int len;
@@ -510,7 +510,7 @@ WingConsole::requestNodeData(uint32_t id)
 }
 
 void
-WingConsole::setString(uint32_t id, const string& value)
+WingConsole::setString(uint32_t id, const string& value) const
 {
     char buf[272];
     int len = formatId(id, buf, 0xd7, 0x0); // this suffix is wrong, we will clobber it below
@@ -534,7 +534,7 @@ WingConsole::setString(uint32_t id, const string& value)
 }
 
 void
-WingConsole::setFloat(uint32_t id, float value)
+WingConsole::setFloat(uint32_t id, float value) const
 {
     char buf[16];
     int len = formatId(id, buf, 0xd7, 0xd4);
@@ -550,7 +550,7 @@ WingConsole::setFloat(uint32_t id, float value)
 }
 
 void
-WingConsole::setInt(uint32_t id, int32_t value)
+WingConsole::setInt(uint32_t id, int32_t value) const
 {
     char buf[16];
     int len = formatId(id, buf, 0xd7, 0x0); // this suffix is wrong, we will clobber it below

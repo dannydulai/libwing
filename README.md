@@ -33,9 +33,13 @@ make
 This will build the **libwing** library and a couple of utilities that use it.
 Output binaries will end up in the build/ subdirectory.
 
+#### Using the library
+
+You can find informatiron on using the library in the [SDK docuemntation](SDK.md).
+
 ## The utilities
 
-#### wingschema
+### wingschema
 
 **wingschema** can be run with zero arguments. It will discover the Wing on the
 network automatically. Once found, it will request every node and parameter's
@@ -52,7 +56,7 @@ between names and the Wing node/parameter IDs. I include a wing-schema.cpp in
 the repo so you don't have to run this, but you can always run it again if you
 want to get the latest schema from newer versions of the firmware.
 
-#### wingmon
+### wingmon
 
 **wingmon** is a utility that connects to the Wing and prints out
 property changes. Just run it with no arguments (it'll discover the Wing on the
@@ -61,7 +65,7 @@ apps. You'll see all the things that changed printed to the console.
 
 
 
-# Protocols and documentation
+# Protocols
 
 There are 3 relevant protocols for controlling the Wing:
 
@@ -141,3 +145,4 @@ one TCP connection. It is used by all the Behringer Wing apps to communicate
 with the Wing.
 
 **libwing** implements the Native protocol.
+

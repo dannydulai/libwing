@@ -1,3 +1,5 @@
+#ifndef __WINGNODE_H
+#define __WINGNODE_H
 #include <string>
 #include <map>
 #include <vector>
@@ -81,3 +83,5 @@ public:
 
     void          clear();
 };
+
+#endif // __WINGNODE_H

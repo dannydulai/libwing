@@ -1,5 +1,5 @@
-#ifndef WINGNODE_H
-#define WINGNODE_H
+#ifndef __WINGCONSOLE_H
+#define __WINGCONSOLE_H
 
 #include <string>
 #include <vector>
@@ -17,16 +17,17 @@ struct DiscoveryInfo {
 class WingConsolePrivate;
 class WingConsole {
     WingConsolePrivate *priv;
+
 public:
-    void read();
+    void  read();
     void close();
 
-    void setString(uint32_t id, const std::string& value);
-    void setFloat (uint32_t id, float value);
-    void setInt   (uint32_t id, int value);
+    void setString(uint32_t id, const std::string& value) const;
+    void setFloat (uint32_t id, float              value) const;
+    void setInt   (uint32_t id, int                value) const;
 
-    void requestNodeDefinition(uint32_t id);
-    void       requestNodeData(uint32_t id);
+    void requestNodeDefinition(uint32_t id) const;
+    void       requestNodeData(uint32_t id) const;
 
     std::function<void(void)>               onRequestEnd;
     std::function<void(NodeDefinition)>     onNodeDefinition;
@@ -36,4 +37,4 @@ public:
     static WingConsole                 connect(const std::string &ip);
 };
 
-#endif
+#endif // __WINGCONSOLE_H
