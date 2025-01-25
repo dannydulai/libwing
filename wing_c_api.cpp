@@ -143,6 +143,36 @@ int wing_console_discover(WingDiscoveryInfo* info_array, size_t max_count, int s
 //     delete data;
 // }
 
+NodeType wing_node_definition_get_type(NodeDefinitionHandle def) {
+    return def ? def->def.getType() : NODE_TYPE_NONE;
+}
+
+NodeUnit wing_node_definition_get_unit(NodeDefinitionHandle def) {
+    return def ? def->def.getUnit() : NODE_UNIT_NONE;
+}
+
+int wing_node_definition_is_read_only(NodeDefinitionHandle def) {
+    return def ? (def->def.isReadOnly() ? 1 : 0) : 0;
+}
+
+uint32_t wing_node_definition_name_to_id(const char* name) {
+    return name ? NodeDefinition::nodeNameToId(std::string(name)) : 0;
+}
+
+int wing_node_definition_id_to_name(uint32_t id, char* buffer, size_t buffer_size) {
+    if (!buffer || buffer_size == 0) {
+        return 0;
+    }
+    std::string name = NodeDefinition::nodeIdToName(id);
+    if (name.empty()) {
+        buffer[0] = '\0';
+        return 0;
+    }
+    strncpy(buffer, name.c_str(), buffer_size - 1);
+    buffer[buffer_size - 1] = '\0';
+    return 1;
+}
+
 int wing_node_data_get_string(NodeDataHandle data, char* buffer, size_t buffer_size) {
     if (!data || !buffer || buffer_size == 0) {
         return 0;
