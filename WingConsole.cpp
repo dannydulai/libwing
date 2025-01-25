@@ -139,7 +139,7 @@ WingConsole::connect(const string &ip)
     console.priv = new WingConsolePrivate();
     console.priv->_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (console.priv->_sock < 0) {
-        throw UnixErrorException("Failed to create socket", errno);
+        throw std::system_error(errno, std::system_category(), "Failed to create socket");
     }
 
     printf("FOO-1\n"); fflush(stdout);
@@ -165,7 +165,7 @@ WingConsole::connect(const string &ip)
     if (::connect(console.priv->_sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         int err = errno;
         ::close(console.priv->_sock);
-        throw UnixErrorException("Failed to connect to console", err);
+        throw std::system_error(err, std::system_category(), "Failed to connect to console");
     }
     printf("FOO2\n"); fflush(stdout);
 
@@ -175,7 +175,7 @@ WingConsole::connect(const string &ip)
     unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
     printf("FOO4\n"); fflush(stdout);
     if (::send(console.priv->_sock, buf, sizeof(buf), 0) != sizeof(buf)) {
-        throw UnixErrorException("Failed to send message", errno);
+        throw std::system_error(errno, std::system_category(), "Failed to send message");
     }
     printf("FOO5\n"); fflush(stdout);
 
@@ -230,7 +230,7 @@ WingConsolePrivate::_getChar()
                     keepAlive(_sock);
                     continue;
                 } else {
-                    throw UnixErrorException("Error reading from socket", errno);
+                    throw std::system_error(errno, std::system_category(), "Error reading from socket");
                 }
             } else if (n == 0) {
                 throw ConnectionClosedException();
@@ -510,7 +510,7 @@ WingConsole::requestNodeDefinition(uint32_t id) const
         len = formatId(id, buf, 0xd7, 0xdd);
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw UnixErrorException("Failed to send get-node-definition message", errno);
+        throw std::system_error(errno, std::system_category(), "Failed to send get-node-definition message");
     }
 }
 
@@ -527,7 +527,7 @@ WingConsole::requestNodeData(uint32_t id) const
         len = formatId(id, buf, 0xd7, 0xdc);
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw UnixErrorException("Failed to send get-node-data message", errno);
+        throw std::system_error(errno, std::system_category(), "Failed to send get-node-data message");
     }
 }
 
@@ -551,7 +551,7 @@ WingConsole::setString(uint32_t id, const string& value) const
         buf[len++] = c;
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw UnixErrorException("Failed to send set-node-int message", errno);
+        throw std::system_error(errno, std::system_category(), "Failed to send set-node-int message");
     }
 }
 
