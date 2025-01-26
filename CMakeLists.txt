@@ -9,7 +9,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Create static library
-add_library(wing STATIC
+add_library(wingstatic STATIC
+    WingConsole.cpp
+    WingNode.cpp
+    wing_c_api.cpp
+)
+
+add_library(wing SHARED
     WingConsole.cpp
     WingNode.cpp
     wing_c_api.cpp
@@ -17,8 +23,8 @@ add_library(wing STATIC
 
 # Create executable that uses the library
 add_executable(wingschema wingschema.cpp)
-target_link_libraries(wingschema PRIVATE wing)
+target_link_libraries(wingschema PRIVATE wingstatic)
 
 # Create executable that uses the library
 add_executable(wingmon wingmon.cpp)
-target_link_libraries(wingmon PRIVATE wing)
+target_link_libraries(wingmon PRIVATE wingstatic)
