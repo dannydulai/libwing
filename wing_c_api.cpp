@@ -9,7 +9,7 @@ struct _node_data_t { NodeData data; };
 struct _node_definition_t { NodeDefinition def; };
 
 wing_discover_t
-wing_console_discover(int stop_on_first)
+wing_discover_scan(int stop_on_first)
 {
     std::vector<DiscoveryInfo> results = WingConsole::discover(stop_on_first != 0);
 
@@ -114,7 +114,7 @@ wing_console_set_node_data_callback(wing_console_t console,
 }
 
 void
-wing_console_close(wing_console_t console)
+wing_console_destroy(wing_console_t console)
 {
     if (console) {
         delete console;

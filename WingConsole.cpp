@@ -141,14 +141,12 @@ WingConsole
 WingConsole::connect(const string &ip)
 {
     WingConsole console;
-    printf("FOO-2\n"); fflush(stdout);
     console.priv = new WingConsolePrivate();
     console.priv->_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (console.priv->_sock < 0) {
         throw std::system_error(errno, std::system_category(), "Failed to create socket");
     }
 
-    printf("FOO-1\n"); fflush(stdout);
 #if _WIN32
     DWORD timeout = TIMEOUT_KEEP_ALIVE * 1000;
     setsockopt(console._sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof timeout);
@@ -159,30 +157,24 @@ WingConsole::connect(const string &ip)
     setsockopt(console.priv->_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 #endif
 
-    printf("FOO0\n"); fflush(stdout);
     struct sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(2222);  // console WING console port
     serverAddr.sin_addr.s_addr = inet_addr(ip.c_str());
 
-    printf("FOO1\n"); fflush(stdout);
 
     if (::connect(console.priv->_sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         int err = errno;
         throw std::system_error(err, std::system_category(), "Failed to connect to console");
     }
-    printf("FOO2\n"); fflush(stdout);
 
     _keepAliveTime = system_clock::now();
 
-    printf("FOO3\n"); fflush(stdout);
     unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
-    printf("FOO4\n"); fflush(stdout);
     if (::send(console.priv->_sock, buf, sizeof(buf), 0) != sizeof(buf)) {
         throw std::system_error(errno, std::system_category(), "Failed to send message");
     }
-    printf("FOO5\n"); fflush(stdout);
 
     return console;
 }

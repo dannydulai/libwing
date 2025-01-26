@@ -38,8 +38,8 @@ typedef struct _wing_console_t*    wing_console_t;
 typedef struct _node_definition_t* node_definition_t;
 typedef struct _node_data_t*       node_data_t;
 
-wing_discover_t wing_discover                      (int stop_on_first);
-void            wing_discover_destory              (wing_discover_t);
+wing_discover_t wing_discover_scan                 (int stop_on_first);
+void            wing_discover_destroy              (wing_discover_t);
 int             wing_discover_count                (wing_discover_t);
 const char *    wing_discover_get_ip               (wing_discover_t, int index);
 const char *    wing_discover_get_name             (wing_discover_t, int index);
