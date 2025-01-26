@@ -10,9 +10,7 @@ local network. It also includes a series of utilities built using this library.
 
 ## The library
 
-This library is called **libwing**. It is built as a static
-library, but not too hard to change if needed (just add it to the
-CMakeLists.txt).
+This library is called **libwing**. You can find information on using the library in the [SDK docuemntation](SDK.md).
 
 #### Dependencies
 
@@ -32,10 +30,6 @@ make
 
 This will build the **libwing** library and a couple of utilities that use it.
 Output binaries will end up in the build/ subdirectory.
-
-#### Using the library
-
-You can find informatiron on using the library in the [SDK docuemntation](SDK.md).
 
 ## The utilities
 
@@ -67,18 +61,24 @@ apps. You'll see all the things that changed printed to the console.
 
 # Protocols
 
-There are 3 relevant protocols for controlling the Wing:
+There are 3 protocols available for controlling the Wing:
 
-- The Discovery protocol
-- The OSC protocol
 - The Native protocol
+- The [OSC](https://en.wikipedia.org/wiki/Open_Sound_Control) protocol
+- The Discovery protocol
 
-The OSC protocol and Native protocol are documented
+The Native and OSC protocolss are documented
 [here](https://cdn.mediavalet.com/aunsw/musictribe/mzolJdOzu0WZG59pX2LDkA/drJQVBUjakq76Xn2GcaT0Q/Original/WING%20Remote%20Protocols%20v3.0.5.pdf)
-(as of Wing firmware v3.0.5) by Patrick-Gilles Maillot.
+(as of Wing firmware v3.0.5) by Patrick-Gilles Maillot. A copy of that document
+is checked in to this repo just in case the above link is not available. The
+file is called Wing-Remote-Protocols.pdf.
 
-A copy of that document is checked in to this repo just in case the above link
-is not available. The file is called Wing-Remote-Protocols.pdf.
+The Wing's Native protocol is a binary protocol that is more efficient and reliable
+than OSC. It is the protocol used by all the Behringer Wing apps to communicate
+with the Wing. **libwing** implements the Native protocol.
+
+**libwing** does not implement the OSC protocol, but there are many other
+libraries available that do support OSC.
 
 ## Discovery Protocol
 
@@ -125,24 +125,3 @@ are 192.168.1.23 / 255.255.255.0, then your broadcast would be 192.168.1.255.
 
 You can also send it to 255.255.255.255 as your router will most likely block
 your packet from leaving your local network.
-
-## OSC (Open Sound Control) Protocol
-
-[OSC](https://en.wikipedia.org/wiki/Open_Sound_Control) is a standard protocol
-for communication with mixers, synthesizers, and other audio equipment. It is a
-text-based protocol that is easy to understand and implement. Unfortunately, it
-comes with some limitations and overhead that make it less performant than the
-Native protocol.
-
-**libwing** does not implement the OSC protocol, but there are many other
-libraries available that do support OSC.
-
-## Native protocol
-
-The Wing protocol is a binary protocol that is more far efficient than OSC and
-operates over TCP. It combines the query/response as well as subscriptions on
-one TCP connection. It is used by all the Behringer Wing apps to communicate
-with the Wing.
-
-**libwing** implements the Native protocol.
-
