@@ -26,6 +26,8 @@ struct WingConsolePrivate {
     size_t        _rx_buf_size = 0; // Current number of bytes in buffer
     bool          _rx_esc = false;
     int           _rx_current_channel = -1;
+    bool          _rx_hasinthepipe = false;
+    unsigned char _rx_inthepipe = 0;
 
     unsigned char _getChar();
     void          _decode(int &channel, unsigned char &val);
@@ -247,6 +249,13 @@ WingConsolePrivate::_getChar()
 void
 WingConsolePrivate::_decode(int &channel, unsigned char &val)
 {
+    if (_rx_hasinthepipe) {
+        channel = _rx_current_channel;
+        val = _rx_inthepipe;
+        _rx_hasinthepipe = false;
+        return;
+    }
+
     while (true) {
         unsigned char c = _getChar();
 
@@ -264,6 +273,8 @@ WingConsolePrivate::_decode(int &channel, unsigned char &val)
                     } else if (_rx_current_channel >= 0) {
                         channel = _rx_current_channel;
                         val = NRP_ESCAPE_CODE;
+                        _rx_hasinthepipe = true;
+                        _rx_inthepipe = c;
                         return;
                     }
                 }
