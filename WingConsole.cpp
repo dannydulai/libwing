@@ -291,7 +291,7 @@ WingConsolePrivate::_decode(int &channel, unsigned char &val)
 #define read8(x)  do { unsigned char c; priv->_decode(channel, c); x = c; } while(0)
 #define read16(x) do { unsigned char c; priv->_decode(channel, c); x = c << 8; priv->_decode(channel, c); x |= c; } while(0)
 #define read32(x) do { unsigned char c; priv->_decode(channel, c); x = c << 24; priv->_decode(channel, c); x |= c << 16; priv->_decode(channel, c); x |= c << 8; priv->_decode(channel, c); x |= c; } while(0)
-#define readfloat(x) do { unsigned char c; priv->_decode(channel, c); int tmp = c << 24; priv->_decode(channel, c); tmp |= c << 16; priv->_decode(channel, c); tmp |= c << 8; priv->_decode(channel, c); tmp |= c; x = *(float*)&tmp;} while(0)
+#define readfloat(x) do { unsigned char c; priv->_decode(channel, c); uint32_t tmp = c << 24; priv->_decode(channel, c); tmp |= c << 16; priv->_decode(channel, c); tmp |= c << 8; priv->_decode(channel, c); tmp |= c; x = *(float*)&tmp;} while(0)
 
 void
 WingConsole::read()
@@ -544,7 +544,7 @@ WingConsole::setString(uint32_t id, const string& value) const
         buf[len++] = 0x3F + value.size();
     } else if (value.size() <= 256) {
         buf[len++] = 0xd1;
-        buf[len++] = value.size() - 1;;
+        buf[len++] = value.size() - 1;
     } else {
         throw runtime_error("String too long");
     }
@@ -560,7 +560,7 @@ void
 WingConsole::setFloat(uint32_t id, float value) const
 {
     char buf[16];
-    int len = formatId(id, buf, 0xd7, 0xd4);
+    int len = formatId(id, buf, 0xd7, 0xd5);
     uint32_t v = *(uint32_t*)&value;
     buf[len++] = (v >> 24) & 0xff;
     buf[len++] = (v >> 16) & 0xff;
@@ -578,11 +578,7 @@ WingConsole::setInt(uint32_t id, int32_t value) const
     char buf[16];
     int len = formatId(id, buf, 0xd7, 0x0); // this suffix is wrong, we will clobber it below
     len--;
-    if (value == 0) {
-        buf[len++] = 0x00;
-    } else if (value == 1) {
-        buf[len++] = 0x01;
-    } else if (value >= 2 && value <= 0x3f) {
+    if (value >= 0 && value <= 0x3f) {
         buf[len++] = value;
     } else if (value <= 0xffff) {
         buf[len++] = 0xd3;
