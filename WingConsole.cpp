@@ -1,4 +1,5 @@
 #include <chrono>
+#include <thread>
 #include <cstring>
 #include <ctime>
 #include <iomanip>
@@ -22,7 +23,8 @@
 using namespace std;
 using namespace std::chrono;
 
-struct WingConsolePrivate {
+class WingConsolePrivate {
+public:
     int           _sock = -1;
 
     unsigned char _rx_buf[2048];
@@ -90,8 +92,8 @@ WingConsole::scan(bool stopOnFirst)
     int i = 0;
     int got = 99999;
     while (i < 10) {
-        ssize_t received = recvfrom(sock, buffer, sizeof(buffer)-1, 0,
-                                    (struct sockaddr*)&senderAddr, &senderLen);
+        auto received = ::recvfrom(sock, buffer, sizeof(buffer)-1, 0,
+                                   (struct sockaddr*)&senderAddr, &senderLen);
 
         if (received > 0) {
             buffer[received] = '\0';
@@ -125,7 +127,7 @@ WingConsole::scan(bool stopOnFirst)
 
         } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                usleep(500 * 1000); // 500ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
             } else {
                 throw std::system_error(errno, std::system_category(), "Error receiving discovery response");
                 break;
