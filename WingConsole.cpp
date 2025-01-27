@@ -190,16 +190,16 @@ WingConsole::connect(const string &ip)
 }
 
 static int
-formatId(int id, char *buf, char prefix, char suffix) {
+formatId(int id, unsigned char *buf, char prefix, char suffix) {
     auto b = buf;
     unsigned char c;
     *buf++ = prefix;
-    c =  id >> 24        ; if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
-    c = (id >> 16) & 0xff; if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
-    c = (id >> 8 ) & 0xff; if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
-    c = (id      ) & 0xff; if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
+    c = (unsigned char)( id >> 24        ); if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
+    c = (unsigned char)((id >> 16) & 0xff); if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
+    c = (unsigned char)((id >> 8 ) & 0xff); if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
+    c = (unsigned char)((id      ) & 0xff); if (c == 0xdf) { *buf++ = 0xdf; *buf++ = 0xde; } else *buf++ = c;
     *buf++ = suffix;
-    return buf - b;
+    return (int)(buf - b);
 }
 
 static void
@@ -225,7 +225,7 @@ WingConsolePrivate::_getChar()
     // If buffer is empty, read more data from socket
     if (_rx_buf_size == 0) {
         while (true) {
-            ssize_t n = ::recv(_sock, _rx_buf, sizeof(_rx_buf), 0);
+            auto n = ::recv(_sock, (char*)_rx_buf, sizeof(_rx_buf), 0);
             if (n < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     keepAlive(_sock);
@@ -505,7 +505,7 @@ WingConsole::read()
 void
 WingConsole::requestNodeDefinition(uint32_t id) const
 {
-    char buf[16];
+    unsigned char buf[16];
     int len;
     if (id == 0) {
         buf[0] = 0xda;
@@ -522,7 +522,7 @@ WingConsole::requestNodeDefinition(uint32_t id) const
 void
 WingConsole::requestNodeData(uint32_t id) const
 {
-    char buf[16];
+    unsigned char buf[16];
     int len;
     if (id == 0) {
         buf[0] = 0xda;
@@ -539,7 +539,7 @@ WingConsole::requestNodeData(uint32_t id) const
 void
 WingConsole::setString(uint32_t id, const string& value) const
 {
-    char buf[272];
+    unsigned char buf[272];
     int len = formatId(id, buf, 0xd7, 0x0); // this suffix is wrong, we will clobber it below
     len--;
     if (value.size() == 0) {
@@ -563,7 +563,7 @@ WingConsole::setString(uint32_t id, const string& value) const
 void
 WingConsole::setFloat(uint32_t id, float value) const
 {
-    char buf[16];
+    unsigned char buf[16];
     int len = formatId(id, buf, 0xd7, 0xd5);
     uint32_t v = *(uint32_t*)&value;
     buf[len++] = (v >> 24) & 0xff;
@@ -579,7 +579,7 @@ WingConsole::setFloat(uint32_t id, float value) const
 void
 WingConsole::setInt(uint32_t id, int32_t value) const
 {
-    char buf[16];
+    unsigned char buf[16];
     int len = formatId(id, buf, 0xd7, 0x0); // this suffix is wrong, we will clobber it below
     len--;
     if (value >= 0 && value <= 0x3f) {
