@@ -68,19 +68,18 @@ void     wing_console_set_request_end_callback    (wing_console_t, WingRequestEn
 void     wing_console_set_node_definition_callback(wing_console_t, WingNodeDefinitionCallback callback, void* user_data);
 void     wing_console_set_node_data_callback      (wing_console_t, WingNodeDataCallback callback, void* user_data);
 
+uint32_t    wing_node_name_to_id                       (const char* name);
+int         wing_node_id_to_name                       (uint32_t id, char* buffer, size_t buffer_size);
+
 // Node definition functions
 node_type_t wing_node_definition_get_type              (node_definition_t);
 node_unit_t wing_node_definition_get_unit              (node_definition_t);
 int         wing_node_definition_is_read_only          (node_definition_t);
-uint32_t    wing_node_definition_name_to_id            (const char* name);
-int         wing_node_definition_id_to_name            (uint32_t id, char* buffer, size_t buffer_size);
-
-// Node definition property accessors
 uint32_t    wing_node_definition_get_parent_id         (node_definition_t);
 uint32_t    wing_node_definition_get_id                (node_definition_t);
 uint16_t    wing_node_definition_get_index             (node_definition_t);
 int         wing_node_definition_get_name              (node_definition_t, char* buffer, size_t buffer_size);
-int         wing_node_definition_get_longname          (node_definition_t, char* buffer, size_t buffer_size);
+int         wing_node_definition_get_long_name         (node_definition_t, char* buffer, size_t buffer_size);
 float       wing_node_definition_get_min_float         (node_definition_t);
 float       wing_node_definition_get_max_float         (node_definition_t);
 uint32_t    wing_node_definition_get_steps             (node_definition_t);
@@ -90,11 +89,11 @@ uint16_t    wing_node_definition_get_max_string_len    (node_definition_t);
 
 // Enum accessors
 size_t      wing_node_definition_get_string_enum_count (node_definition_t);
-int         wing_node_definition_get_string_enum_item  (node_definition_t, size_t index, 
+void        wing_node_definition_get_string_enum_item  (node_definition_t, size_t index, 
                                                         char* item_buffer, size_t item_buffer_size,
                                                         char* longitem_buffer, size_t longitem_buffer_size);
 size_t      wing_node_definition_get_float_enum_count  (node_definition_t);
-int         wing_node_definition_get_float_enum_item   (node_definition_t, size_t index,
+void        wing_node_definition_get_float_enum_item   (node_definition_t, size_t index,
                                                         float* item_value,
                                                         char* longitem_buffer, size_t longitem_buffer_size);
 

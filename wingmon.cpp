@@ -9,7 +9,7 @@ int
 main()
 {
     cout << "Discovering Behringer Wing consoles..." << endl;
-    auto discovered = WingConsole::discover();
+    auto discovered = WingConsole::scan();
     
     if (discovered.empty()) {
         cerr << "No Behringer Wing consoles found" << endl;

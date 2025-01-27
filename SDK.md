@@ -23,7 +23,7 @@ The Wing console exposes its functionality through a tree of nodes. Each node ha
 To find Wing consoles on your network:
 
 ```cpp
-auto discovered = WingConsole::discover();
+auto discovered = WingConsole::scan();
 if (!discovered.empty()) {
     // Found at least one console
     auto firstConsole = discovered[0];

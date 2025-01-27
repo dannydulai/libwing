@@ -41,7 +41,7 @@ printNode(int nodeId, bool recurs)
 
     if (def.index != 0)        parts.push_back(format("\"idx\": \"{}\"", def.index));
     if (!def.name.empty())     parts.push_back(format("\"name\": \"{}\"", def.name));
-    if (!def.longname.empty()) parts.push_back(format("\"longname\": \"{}\"", def.longname));
+    if (!def.longName.empty()) parts.push_back(format("\"longname\": \"{}\"", def.longName));
 
     switch (def.getType()) {
         case WingNode::TYPE_NODE:              parts.push_back("\"type\": \"node\"");              break;
@@ -171,7 +171,7 @@ int
 main()
 {
     cout << "Discovering Behringer Wing consoles..." << endl;
-    auto discovered = WingConsole::discover();
+    auto discovered = WingConsole::scan();
     
     if (discovered.empty()) {
         cerr << "No Behringer Wing discovered found" << endl;

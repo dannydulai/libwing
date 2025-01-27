@@ -30,9 +30,11 @@ struct WingConsolePrivate {
     unsigned char _getChar();
     void          _decode(int &channel, unsigned char &val);
 
-    ~WingConsolePrivate() {
-        if (_sock >= 0)
+    void close() {
+        if (_sock >= 0) {
             ::shutdown(_sock, SHUT_RDWR);
+            _sock = -1;
+        }
     }
 };
 
@@ -41,16 +43,14 @@ static time_point<system_clock> _keepAliveTime;
 
 #define TIMEOUT_KEEP_ALIVE 7
 
-
 vector<DiscoveryInfo>
-WingConsole::discover(bool stopOnFirst)
+WingConsole::scan(bool stopOnFirst)
 {
     vector<DiscoveryInfo> discovered;
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
-        cerr << "Failed to create discovery socket" << endl;
-        return discovered;
+        throw std::system_error(errno, std::system_category(), "Error creating discovery socket");
     }
 
     int flags = fcntl(sock, F_GETFL, 0);
@@ -58,9 +58,9 @@ WingConsole::discover(bool stopOnFirst)
 
     int broadcastEnable = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable)) < 0) {
-        cerr << "Failed to enable broadcast" << endl;
+        int err = errno;
         shutdown(sock, SHUT_RDWR);
-        return discovered;
+        throw std::system_error(err, std::system_category(), "Error enabling broadcast sends on discovery socket");
     }
 
     struct sockaddr_in broadcastAddr;
@@ -70,8 +70,11 @@ WingConsole::discover(bool stopOnFirst)
     broadcastAddr.sin_addr.s_addr = inet_addr("255.255.255.255");
 
     char discoveryMsg[] = "WING?";
-    sendto(sock, discoveryMsg, strlen(discoveryMsg), 0,
-           (struct sockaddr*)&broadcastAddr, sizeof(broadcastAddr));
+    if (sendto(sock, discoveryMsg, strlen(discoveryMsg), 0, (struct sockaddr*)&broadcastAddr, sizeof(broadcastAddr)) < 0) {
+        int err = errno;
+        shutdown(sock, SHUT_RDWR);
+        throw std::system_error(err, std::system_category(), "Error sending broadcast discovery packet");
+    }
 
     // Receive responses
     char buffer[1024];
@@ -133,8 +136,9 @@ WingConsole::discover(bool stopOnFirst)
     return discovered;
 }
 
-WingConsole::~WingConsole() {
-    delete priv;
+void
+WingConsole::close() {
+    priv->close();
 }
 
 WingConsole
@@ -201,9 +205,9 @@ keepAlive(int sock)
     duration<double> elapsed_seconds = now-_keepAliveTime;
     if (elapsed_seconds.count() > TIMEOUT_KEEP_ALIVE) {
         unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
-        // if (::send(sock, buf, sizeof(buf), 0) != sizeof(buf)) {
-        //     throw std::system_error(errno, std::system_category(), "Failed to send keepalive message");
-        // }
+        if (::send(sock, buf, sizeof(buf), 0) != sizeof(buf)) {
+            throw std::system_error(errno, std::system_category(), "Failed to send keepalive message");
+        }
         _keepAliveTime = system_clock::now();
     }
 }
@@ -291,17 +295,17 @@ WingConsole::read()
 
             if (cmd == 0x00) {
                 if (_nodeData[currentNode].setInt(0)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0x01) {
                 if (_nodeData[currentNode].setInt(1)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd >= 0x02 && cmd <= 0x3f) {
                 if (_nodeData[currentNode].setInt((int)cmd)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd >= 0x40 && cmd <= 0x7f) {
@@ -316,7 +320,7 @@ WingConsole::read()
                     s += ch;
                 }
                 if (_nodeData[currentNode].setString(s)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd >= 0xc0 && cmd <= 0xcf) {
@@ -325,7 +329,7 @@ WingConsole::read()
 
             } else if (cmd == 0xd0) {
                 if (_nodeData[currentNode].setString("")) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0xd1) {
@@ -339,7 +343,7 @@ WingConsole::read()
                     s += ch;
                 }
                 if (_nodeData[currentNode].setString(s)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0xd2) {
@@ -350,27 +354,27 @@ WingConsole::read()
             } else if (cmd == 0xd3) {
                 read16(tmp);
                 if (_nodeData[currentNode].setInt(tmp)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0xd4) {
                 read32(tmp);
                 if (_nodeData[currentNode].setInt(tmp)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0xd5) {
                 float f;
                 readfloat(f);
                 if (_nodeData[currentNode].setFloat(f)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0xd6) {
                 float f;
                 readfloat(f);
                 if (_nodeData[currentNode].setFloat(f)) {
-                    onNodeData(currentNode, _nodeData[currentNode]);
+                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
 
             } else if (cmd == 0xd7) {
@@ -397,7 +401,7 @@ WingConsole::read()
                 cerr << "REQUEST: CURRENT NODE DEFINITION" << endl;
 
             } else if (cmd == 0xde) {
-                onRequestEnd();
+                if (onRequestEnd) onRequestEnd();
 
             } else if (cmd == 0xdf) { // node definition response
                 NodeDefinition node;
@@ -419,7 +423,7 @@ WingConsole::read()
                 for (int j = 0; j < len; j++) {
                     unsigned char ch;
                     read8(ch);
-                    node.longname += ch;
+                    node.longName += ch;
                 }
 
                 read16(node.flags);
@@ -470,7 +474,7 @@ WingConsole::read()
                     }
                 }
 
-                onNodeDefinition(node);
+                if (onNodeDefinition) onNodeDefinition(node);
             } else {
                 cerr << "Received UNKNOWN BYTE: " << hex << setw(2) << setfill('0') << (int)cmd << endl;
             }

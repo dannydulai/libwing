@@ -35,11 +35,14 @@ public:
     void requestNodeDefinition(uint32_t id) const;
     void requestNodeData(uint32_t id) const;
 
-    // discover and connect to a Wing device
-    static std::vector<DiscoveryInfo> discover(bool stopOnFirst = true);
+    // scan to discover a Wing device
+    static std::vector<DiscoveryInfo> scan(bool stopOnFirst = true);
+
+    // connect to a wing device
     static WingConsole connect(const std::string &ip);
 
-    ~WingConsole();
+    // close the connection to the Wing device
+    void close();
 
 private:
     WingConsolePrivate *priv;

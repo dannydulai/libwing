@@ -11,86 +11,85 @@ struct _node_definition_t { NodeDefinition def; };
 wing_discover_t
 wing_discover_scan(int stop_on_first)
 {
-    std::vector<DiscoveryInfo> results = WingConsole::discover(stop_on_first != 0);
-
-    wing_discover_t handle = new _wing_discover_t();
-    handle->info = results;
-    return handle;
+    std::vector<DiscoveryInfo> results = WingConsole::scan(stop_on_first != 0);
+    wing_discover_t discover_handle = new _wing_discover_t();
+    discover_handle->info = results;
+    return discover_handle;
 }
 
 void
-wing_discover_destroy(wing_discover_t handle)
+wing_discover_destroy(wing_discover_t discover_handle)
 {
-    delete handle;
+    delete discover_handle;
 }
 
 int
-wing_discover_count(wing_discover_t handle)
+wing_discover_count(wing_discover_t discover_handle)
 {
-    return handle ? handle->info.size() : 0;
+    return discover_handle ? discover_handle->info.size() : 0;
 }
 
 const char *
-wing_discover_get_ip(wing_discover_t handle, int index)
+wing_discover_get_ip(wing_discover_t discover_handle, int index)
 {
-    return handle ? handle->info[index].ip.c_str() : nullptr;
+    return discover_handle ? discover_handle->info[index].ip.c_str() : nullptr;
 }
 
 const char *
-wing_discover_get_name(wing_discover_t handle, int index)
+wing_discover_get_name(wing_discover_t discover_handle, int index)
 {
-    return handle ? handle->info[index].name.c_str() : nullptr;
+    return discover_handle ? discover_handle->info[index].name.c_str() : nullptr;
 }
 
 const char *
-wing_discover_get_model(wing_discover_t handle, int index)
+wing_discover_get_model(wing_discover_t discover_handle, int index)
 {
-    return handle ? handle->info[index].model.c_str() : nullptr;
+    return discover_handle ? discover_handle->info[index].model.c_str() : nullptr;
 }
 
 const char *
-wing_discover_get_serial(wing_discover_t handle, int index)
+wing_discover_get_serial(wing_discover_t discover_handle, int index)
 {
-    return handle ? handle->info[index].serial.c_str() : nullptr;
+    return discover_handle ? discover_handle->info[index].serial.c_str() : nullptr;
 }
 
 const char *
-wing_discover_get_firmware(wing_discover_t handle, int index)
+wing_discover_get_firmware(wing_discover_t discover_handle, int index)
 {
-    return handle ? handle->info[index].firmware.c_str() : nullptr;
+    return discover_handle ? discover_handle->info[index].firmware.c_str() : nullptr;
 }
 
 wing_console_t
 wing_console_connect(const char *ip)
 {
     try {
-        wing_console_t handle = new _wing_console_t();
-        handle->console = WingConsole::connect(ip);
-        return handle;
+        wing_console_t console_handle = new _wing_console_t();
+        console_handle->console = WingConsole::connect(ip);
+        return console_handle;
     } catch (...) {
         return nullptr;
     }
 }
 
 void
-wing_console_set_request_end_callback(wing_console_t console,
+wing_console_set_request_end_callback(wing_console_t console_handle,
                                       WingRequestEndCallback cb,
                                       void *user_data)
 {
-    if (console) {
-        console->console.onRequestEnd = [cb, user_data]() {
+    if (console_handle) {
+        console_handle->console.onRequestEnd = [cb, user_data]() {
             cb(user_data);
         };
     }
 }
 
 void
-wing_console_set_node_definition_callback( wing_console_t console,
+wing_console_set_node_definition_callback( wing_console_t console_handle,
                                            WingNodeDefinitionCallback cb,
                                            void *user_data)
 {
-    if (console) {
-        console->console.onNodeDefinition = [cb,
+    if (console_handle) {
+        console_handle->console.onNodeDefinition = [cb,
         user_data](NodeDefinition def) {
             node_definition_t def_handle = new _node_definition_t{def};
             cb(def_handle, user_data);
@@ -100,12 +99,12 @@ wing_console_set_node_definition_callback( wing_console_t console,
 }
 
 void
-wing_console_set_node_data_callback(wing_console_t console,
+wing_console_set_node_data_callback(wing_console_t console_handle,
                                     WingNodeDataCallback cb,
                                     void *user_data)
 {
-    if (console) {
-        console->console.onNodeData = [cb, user_data](uint32_t id, NodeData data) {
+    if (console_handle) {
+        console_handle->console.onNodeData = [cb, user_data](uint32_t id, NodeData data) {
             node_data_t data_handle = new _node_data_t{data};
             cb(id, data_handle, user_data);
             delete data_handle;
@@ -114,66 +113,71 @@ wing_console_set_node_data_callback(wing_console_t console,
 }
 
 void
-wing_console_destroy(wing_console_t console)
+wing_console_destroy(wing_console_t console_handle)
 {
-    if (console) {
-        delete console;
+    printf("c: Destroying console\n");
+    fflush(stdout);
+    console_handle->console.close();
+    delete console_handle;
+}
+
+void
+wing_console_read(wing_console_t console_handle)
+{
+    if (console_handle) {
+        printf("c: Reading from console\n");
+        fflush(stdout);
+        console_handle->console.read();
+        printf("c: done Reading from console\n");
+        fflush(stdout);
     }
 }
 
 void
-wing_console_read(wing_console_t console)
-{
-    if (console) {
-        console->console.read();
-    }
-}
-
-void
-wing_console_set_string(wing_console_t console,
+wing_console_set_string(wing_console_t console_handle,
                         uint32_t id,
                         const char *value)
 {
-    if (console && value) {
-        console->console.setString(id, std::string(value));
+    if (console_handle && value) {
+        console_handle->console.setString(id, std::string(value));
     }
 }
 
 void
-wing_console_set_float(wing_console_t console,
+wing_console_set_float(wing_console_t console_handle,
                        uint32_t id,
                        float value)
 {
-    if (console) {
-        console->console.setFloat(id, value);
+    if (console_handle) {
+        console_handle->console.setFloat(id, value);
     }
 }
 
 void
-wing_console_set_int(wing_console_t console,
+wing_console_set_int(wing_console_t console_handle,
                      uint32_t id,
                      int value)
 {
-    if (console) {
-        console->console.setInt(id, value);
+    if (console_handle) {
+        console_handle->console.setInt(id, value);
     }
 }
 
 void
-wing_console_request_node_definition(wing_console_t console,
+wing_console_request_node_definition(wing_console_t console_handle,
                                      uint32_t id)
 {
-    if (console) {
-        console->console.requestNodeDefinition(id);
+    if (console_handle) {
+        console_handle->console.requestNodeDefinition(id);
     }
 }
 
 void
-wing_console_request_node_data(wing_console_t console,
+wing_console_request_node_data(wing_console_t console_handle,
                                uint32_t id)
 {
-    if (console) {
-        console->console.requestNodeData(id);
+    if (console_handle) {
+        console_handle->console.requestNodeData(id);
     }
 }
 
@@ -196,13 +200,13 @@ wing_node_definition_is_read_only(node_definition_t def)
 }
 
 uint32_t
-wing_node_definition_name_to_id(const char* name)
+wing_node_name_to_id(const char* name)
 {
     return name ? NodeDefinition::nodeNameToId(std::string(name)) : 0;
 }
 
 int
-wing_node_definition_id_to_name(uint32_t id, char* buffer, size_t buffer_size)
+wing_node_id_to_name(uint32_t id, char* buffer, size_t buffer_size)
 {
     if (!buffer || buffer_size == 0) {
         return 0;
@@ -287,12 +291,12 @@ wing_node_definition_get_name(node_definition_t def,
 }
 
 int
-wing_node_definition_get_longname(node_definition_t def,
-                                  char* buffer,
-                                  size_t buffer_size)
+wing_node_definition_get_long_name(node_definition_t def,
+                                   char* buffer,
+                                   size_t buffer_size)
 {
     if (!def || !buffer || buffer_size == 0) return 0;
-    strncpy(buffer, def->def.longname.c_str(), buffer_size - 1);
+    strncpy(buffer, def->def.longName.c_str(), buffer_size - 1);
     buffer[buffer_size - 1] = '\0';
     return 1;
 }
@@ -339,7 +343,7 @@ wing_node_definition_get_string_enum_count(node_definition_t def)
     return def ? def->def.stringEnum.size() : 0;
 }
 
-int
+void
 wing_node_definition_get_string_enum_item(node_definition_t def,
                                           size_t index,
                                           char *item_buffer,
@@ -349,7 +353,7 @@ wing_node_definition_get_string_enum_item(node_definition_t def,
 {
     if (!def || index >= def->def.stringEnum.size() || !item_buffer ||
         item_buffer_size == 0 || !longitem_buffer || longitem_buffer_size == 0) {
-        return 0;
+        return;
     }
 
     const auto &item = def->def.stringEnum[index];
@@ -358,8 +362,6 @@ wing_node_definition_get_string_enum_item(node_definition_t def,
 
     strncpy(longitem_buffer, item.longitem.c_str(), longitem_buffer_size - 1);
     longitem_buffer[longitem_buffer_size - 1] = '\0';
-
-    return 1;
 }
 
 size_t
@@ -368,7 +370,7 @@ wing_node_definition_get_float_enum_count(node_definition_t def)
     return def ? def->def.floatEnum.size() : 0;
 }
 
-int
+void
 wing_node_definition_get_float_enum_item(node_definition_t def,
                                          size_t index,
                                          float* item_value,
@@ -377,7 +379,7 @@ wing_node_definition_get_float_enum_item(node_definition_t def,
 {
     if (!def || index >= def->def.floatEnum.size() || 
         !item_value || !longitem_buffer || longitem_buffer_size == 0) {
-        return 0;
+        return;
     }
 
     const auto& item = def->def.floatEnum[index];
@@ -385,6 +387,4 @@ wing_node_definition_get_float_enum_item(node_definition_t def,
 
     strncpy(longitem_buffer, item.longitem.c_str(), longitem_buffer_size - 1);
     longitem_buffer[longitem_buffer_size - 1] = '\0';
-
-    return 1;
 }

@@ -42,7 +42,7 @@ struct NodeDefinition {
     uint32_t                    id;
     uint16_t                    index;
     std::string                 name;
-    std::string                 longname;
+    std::string                 longName;
     uint16_t                    flags; // use helper functions below to read
 
     float                       minFloat;
