@@ -14,10 +14,16 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <Ws2ipdef.h>
+#define ISVALIDSOCKET(s) ((s) != INVALID_SOCKET)
+#define GETSOCKETERRNO() (WSAGetLastError())
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#define SOCKET int
+#define ISVALIDSOCKET(s) ((s) >= 0)
+#define GETSOCKETERRNO() (errno)
+#define INVALID_SOCKET -1
 #endif
 
 #include "WingConsole.h"
@@ -27,7 +33,7 @@ using namespace std::chrono;
 
 class WingConsolePrivate {
 public:
-    int           _sock = -1;
+    SOCKET        _sock = INVALID_SOCKET;
 
     unsigned char _rx_buf[2048];
     size_t        _rx_buf_tail = 0; // Index for reading
@@ -41,9 +47,9 @@ public:
     void          _decode(int &channel, unsigned char &val);
 
     void close() {
-        if (_sock >= 0) {
+        if (ISVALIDSOCKET(_sock)) {
             ::shutdown(_sock, 2);
-            _sock = -1;
+            _sock = INVALID_SOCKET;
         }
     }
 };
@@ -58,9 +64,9 @@ WingConsole::scan(bool stopOnFirst)
 {
     vector<DiscoveryInfo> discovered;
 
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock < 0) {
-        throw std::system_error(errno, std::system_category(), "Error creating discovery socket");
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (!ISVALIDSOCKET(sock)) {
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Error creating discovery socket");
     }
 
     int flags = fcntl(sock, F_GETFL, 0);
@@ -68,7 +74,7 @@ WingConsole::scan(bool stopOnFirst)
 
     int broadcastEnable = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable)) < 0) {
-        int err = errno;
+        int err = GETSOCKETERRNO();
         ::shutdown(sock, 2);
         throw std::system_error(err, std::system_category(), "Error enabling broadcast sends on discovery socket");
     }
@@ -81,7 +87,7 @@ WingConsole::scan(bool stopOnFirst)
 
     char discoveryMsg[] = "WING?";
     if (sendto(sock, discoveryMsg, strlen(discoveryMsg), 0, (struct sockaddr*)&broadcastAddr, sizeof(broadcastAddr)) < 0) {
-        int err = errno;
+        int err = GETSOCKETERRNO();
         ::shutdown(sock, 2);
         throw std::system_error(err, std::system_category(), "Error sending broadcast discovery packet");
     }
@@ -128,10 +134,11 @@ WingConsole::scan(bool stopOnFirst)
             break;
 
         } else {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            int err = GETSOCKETERRNO(); 
+            if (err == EAGAIN || err == EWOULDBLOCK) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             } else {
-                throw std::system_error(errno, std::system_category(), "Error receiving discovery response");
+                throw std::system_error(err, std::system_category(), "Error receiving discovery response");
                 break;
             }
         }
@@ -158,7 +165,7 @@ WingConsole::connect(const string &ip)
     console.priv = new WingConsolePrivate();
     console.priv->_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (console.priv->_sock < 0) {
-        throw std::system_error(errno, std::system_category(), "Failed to create socket");
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to create socket");
     }
 
 #if _WIN32
@@ -179,7 +186,7 @@ WingConsole::connect(const string &ip)
 
 
     if (::connect(console.priv->_sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-        int err = errno;
+        int err = GETSOCKETERRNO();
         throw std::system_error(err, std::system_category(), "Failed to connect to console");
     }
 
@@ -187,7 +194,7 @@ WingConsole::connect(const string &ip)
 
     unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
     if (::send(console.priv->_sock, buf, sizeof(buf), 0) != sizeof(buf)) {
-        throw std::system_error(errno, std::system_category(), "Failed to send message");
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to send message");
     }
 
     return console;
@@ -216,7 +223,7 @@ keepAlive(int sock)
     if (elapsed_seconds.count() > TIMEOUT_KEEP_ALIVE) {
         unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
         if (::send(sock, buf, sizeof(buf), 0) != sizeof(buf)) {
-            throw std::system_error(errno, std::system_category(), "Failed to send keepalive message");
+            throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to send keepalive message");
         }
         _keepAliveTime = system_clock::now();
     }
@@ -231,11 +238,12 @@ WingConsolePrivate::_getChar()
         while (true) {
             auto n = ::recv(_sock, (char*)_rx_buf, sizeof(_rx_buf), 0);
             if (n < 0) {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                int err = GETSOCKETERRNO();
+                if (err == EAGAIN || err == EWOULDBLOCK) {
                     keepAlive(_sock);
                     continue;
                 } else {
-                    throw std::system_error(errno, std::system_category(), "Error reading from socket");
+                    throw std::system_error(err, std::system_category(), "Error reading from socket");
                 }
             } else if (n == 0) {
                 throw std::system_error(ECONNRESET, std::system_category(), "Connection closed");
@@ -519,7 +527,7 @@ WingConsole::requestNodeDefinition(uint32_t id) const
         len = formatId(id, buf, 0xd7, 0xdd);
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw std::system_error(errno, std::system_category(), "Failed to send get-node-definition message");
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to send get-node-definition message");
     }
 }
 
@@ -536,7 +544,7 @@ WingConsole::requestNodeData(uint32_t id) const
         len = formatId(id, buf, 0xd7, 0xdc);
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw std::system_error(errno, std::system_category(), "Failed to send get-node-data message");
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to send get-node-data message");
     }
 }
 
@@ -560,7 +568,7 @@ WingConsole::setString(uint32_t id, const string& value) const
         buf[len++] = c;
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw std::system_error(errno, std::system_category(), "Failed to send set-node-int message");
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to send set-node-int message");
     }
 }
 
@@ -576,7 +584,7 @@ WingConsole::setFloat(uint32_t id, float value) const
     buf[len++] = v & 0xff;
 
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw std::system_error(errno, std::system_category(), "Failed to send set-node-int message");
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to send set-node-int message");
     }
 }
 
@@ -600,6 +608,6 @@ WingConsole::setInt(uint32_t id, int32_t value) const
         buf[len++] = value & 0xff;
     }
     if (::send(priv->_sock, buf, len, 0) != len) {
-        throw std::system_error(errno, std::system_category(), "Failed to send set-node-int message");
+        throw std::system_error(GETSOCKETERRNO(), std::system_category(), "Failed to send set-node-int message");
     }
 }
