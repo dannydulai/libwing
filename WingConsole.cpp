@@ -192,7 +192,7 @@ WingConsole::connect(const string &ip)
 }
 
 static int
-formatId(int id, unsigned char *buf, char prefix, char suffix) {
+formatId(int id, unsigned char *buf, unsigned char prefix, unsigned char suffix) {
     auto b = buf;
     unsigned char c;
     *buf++ = prefix;
