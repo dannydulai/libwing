@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <cstdint>
 
 #include "WingNode.h"
 
