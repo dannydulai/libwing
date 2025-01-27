@@ -69,17 +69,18 @@ void     wing_console_set_node_definition_callback(wing_console_t, WingNodeDefin
 void     wing_console_set_node_data_callback      (wing_console_t, WingNodeDataCallback callback, void* user_data);
 
 uint32_t    wing_node_name_to_id                       (const char* name);
-int         wing_node_id_to_name                       (uint32_t id, char* buffer, size_t buffer_size);
+void        wing_node_id_to_name                       (uint32_t id, char* buffer, size_t buffer_size);
 
 // Node definition functions
+void        wing_node_definition_destroy               (node_definition_t);
 node_type_t wing_node_definition_get_type              (node_definition_t);
 node_unit_t wing_node_definition_get_unit              (node_definition_t);
 int         wing_node_definition_is_read_only          (node_definition_t);
 uint32_t    wing_node_definition_get_parent_id         (node_definition_t);
 uint32_t    wing_node_definition_get_id                (node_definition_t);
 uint16_t    wing_node_definition_get_index             (node_definition_t);
-int         wing_node_definition_get_name              (node_definition_t, char* buffer, size_t buffer_size);
-int         wing_node_definition_get_long_name         (node_definition_t, char* buffer, size_t buffer_size);
+void        wing_node_definition_get_name              (node_definition_t, char* buffer, size_t buffer_size);
+void        wing_node_definition_get_long_name         (node_definition_t, char* buffer, size_t buffer_size);
 float       wing_node_definition_get_min_float         (node_definition_t);
 float       wing_node_definition_get_max_float         (node_definition_t);
 uint32_t    wing_node_definition_get_steps             (node_definition_t);
@@ -100,7 +101,8 @@ void        wing_node_definition_get_float_enum_item   (node_definition_t, size_
 // Node data functions
 // NodeDataHandle wing_node_data_create();
 // void wing_node_data_destroy(NodeDataHandle data);
-int   wing_node_data_get_string(node_data_t, char* buffer, size_t buffer_size);
+void  wing_node_data_destroy   (node_data_t);
+void  wing_node_data_get_string(node_data_t, char* buffer, size_t buffer_size);
 float wing_node_data_get_float (node_data_t);
 int   wing_node_data_get_int   (node_data_t);
 int   wing_node_data_has_string(node_data_t);

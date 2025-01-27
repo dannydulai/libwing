@@ -91,9 +91,7 @@ wing_console_set_node_definition_callback( wing_console_t console_handle,
     if (console_handle) {
         console_handle->console.onNodeDefinition = [cb,
         user_data](NodeDefinition def) {
-            node_definition_t def_handle = new _node_definition_t{def};
-            cb(def_handle, user_data);
-            delete def_handle;
+            cb(new _node_definition_t{def}, user_data);
         };
     }
 }
@@ -105,9 +103,7 @@ wing_console_set_node_data_callback(wing_console_t console_handle,
 {
     if (console_handle) {
         console_handle->console.onNodeData = [cb, user_data](uint32_t id, NodeData data) {
-            node_data_t data_handle = new _node_data_t{data};
-            cb(id, data_handle, user_data);
-            delete data_handle;
+            cb(id, new _node_data_t{data}, user_data);
         };
     }
 }
@@ -115,8 +111,6 @@ wing_console_set_node_data_callback(wing_console_t console_handle,
 void
 wing_console_destroy(wing_console_t console_handle)
 {
-    printf("c: Destroying console\n");
-    fflush(stdout);
     console_handle->console.close();
     delete console_handle;
 }
@@ -125,11 +119,7 @@ void
 wing_console_read(wing_console_t console_handle)
 {
     if (console_handle) {
-        printf("c: Reading from console\n");
-        fflush(stdout);
         console_handle->console.read();
-        printf("c: done Reading from console\n");
-        fflush(stdout);
     }
 }
 
@@ -181,6 +171,12 @@ wing_console_request_node_data(wing_console_t console_handle,
     }
 }
 
+void
+wing_node_definition_destroy(node_definition_t def_handle)
+{
+    delete def_handle;
+}
+
 node_type_t
 wing_node_definition_get_type(node_definition_t def)
 {
@@ -205,142 +201,135 @@ wing_node_name_to_id(const char* name)
     return name ? NodeDefinition::nodeNameToId(std::string(name)) : 0;
 }
 
-int
+void
 wing_node_id_to_name(uint32_t id, char* buffer, size_t buffer_size)
 {
-    if (!buffer || buffer_size == 0) {
-        return 0;
-    }
     std::string name = NodeDefinition::nodeIdToName(id);
     if (name.empty()) {
         buffer[0] = '\0';
-        return 0;
+    } else {
+        strncpy(buffer, name.c_str(), buffer_size - 1);
+        buffer[buffer_size - 1] = '\0';
     }
-    strncpy(buffer, name.c_str(), buffer_size - 1);
-    buffer[buffer_size - 1] = '\0';
-    return 1;
 }
 
-int
+void
+wing_node_data_destroy(node_data_t data_handle)
+{
+    delete data_handle;
+}
+void
 wing_node_data_get_string(node_data_t data, char* buffer, size_t buffer_size)
 {
-    if (!data || !buffer || buffer_size == 0) {
-        return 0;
-    }
     std::string str = data->data.getString();
     strncpy(buffer, str.c_str(), buffer_size - 1);
     buffer[buffer_size - 1] = '\0';
-    return 1;
 }
 
 float
 wing_node_data_get_float(node_data_t data)
 {
-    return data ? data->data.getFloat() : 0.0f;
+    return data->data.getFloat();
 }
 
 int wing_node_data_get_int(node_data_t data) {
-    return data ? data->data.getInt() : 0;
+    return data->data.getInt();
 }
 
 int
 wing_node_data_has_string(node_data_t data)
 {
-    return data ? (data->data.hasString() ? 1 : 0) : 0;
+    return (data->data.hasString() ? 1 : 0);
 }
 
 int
 wing_node_data_has_float(node_data_t data)
 {
-    return data ? (data->data.hasFloat() ? 1 : 0) : 0;
+    return (data->data.hasFloat() ? 1 : 0);
 }
 
 int
 wing_node_data_has_int(node_data_t data)
 {
-    return data ? (data->data.hasInt() ? 1 : 0) : 0;
+    return (data->data.hasInt() ? 1 : 0);
 }
 
 uint32_t
 wing_node_definition_get_parent_id(node_definition_t def)
 {
-    return def ? def->def.parentId : 0;
+    return def->def.parentId;
 }
 
 uint32_t
 wing_node_definition_get_id(node_definition_t def)
 {
-    return def ? def->def.id : 0;
+    return def->def.id;
 }
 
 uint16_t
 wing_node_definition_get_index(node_definition_t def)
 {
-    return def ? def->def.index : 0;
+    return def->def.index;
 }
 
-int
+void
 wing_node_definition_get_name(node_definition_t def,
                               char* buffer,
                               size_t buffer_size)
 {
-    if (!def || !buffer || buffer_size == 0) return 0;
     strncpy(buffer, def->def.name.c_str(), buffer_size - 1);
     buffer[buffer_size - 1] = '\0';
-    return 1;
 }
 
-int
+void
 wing_node_definition_get_long_name(node_definition_t def,
                                    char* buffer,
                                    size_t buffer_size)
 {
-    if (!def || !buffer || buffer_size == 0) return 0;
     strncpy(buffer, def->def.longName.c_str(), buffer_size - 1);
     buffer[buffer_size - 1] = '\0';
-    return 1;
 }
 
 float
 wing_node_definition_get_min_float(node_definition_t def)
 {
-    return def ? def->def.minFloat : 0.0f;
+    return def->def.minFloat;
 }
 
 float
 wing_node_definition_get_max_float(node_definition_t def)
 {
-    return def ? def->def.maxFloat : 0.0f;
+    return def->def.maxFloat;
 }
 
 uint32_t
 wing_node_definition_get_steps(node_definition_t def)
 {
-    return def ? def->def.steps : 0;
+    return def->def.steps;
 }
 
 int32_t
 wing_node_definition_get_min_int(node_definition_t def)
 {
-    return def ? def->def.minInt : 0;
+    return def->def.minInt;
 }
 
 int32_t
 wing_node_definition_get_max_int(node_definition_t def)
 {
-    return def ? def->def.maxInt : 0;
+    return def->def.maxInt;
 }
 
 uint16_t
 wing_node_definition_get_max_string_len(node_definition_t def)
 {
-    return def ? def->def.maxStringLen : 0;
+    return def->def.maxStringLen;
 }
 
 size_t
 wing_node_definition_get_string_enum_count(node_definition_t def)
 {
-    return def ? def->def.stringEnum.size() : 0;
+    return def->def.stringEnum.size();
 }
 
 void
@@ -351,11 +340,6 @@ wing_node_definition_get_string_enum_item(node_definition_t def,
                                           char *longitem_buffer,
                                           size_t longitem_buffer_size)
 {
-    if (!def || index >= def->def.stringEnum.size() || !item_buffer ||
-        item_buffer_size == 0 || !longitem_buffer || longitem_buffer_size == 0) {
-        return;
-    }
-
     const auto &item = def->def.stringEnum[index];
     strncpy(item_buffer, item.item.c_str(), item_buffer_size - 1);
     item_buffer[item_buffer_size - 1] = '\0';
@@ -367,7 +351,7 @@ wing_node_definition_get_string_enum_item(node_definition_t def,
 size_t
 wing_node_definition_get_float_enum_count(node_definition_t def)
 {
-    return def ? def->def.floatEnum.size() : 0;
+    return def->def.floatEnum.size();
 }
 
 void
@@ -377,11 +361,6 @@ wing_node_definition_get_float_enum_item(node_definition_t def,
                                          char* longitem_buffer,
                                          size_t longitem_buffer_size)
 {
-    if (!def || index >= def->def.floatEnum.size() || 
-        !item_value || !longitem_buffer || longitem_buffer_size == 0) {
-        return;
-    }
-
     const auto& item = def->def.floatEnum[index];
     *item_value = item.item;
 
