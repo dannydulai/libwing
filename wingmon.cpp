@@ -31,10 +31,9 @@ main()
 
     auto console = WingConsole::connect(discovered[0].ip);
     console.onNodeData = [&](auto id, auto data) {
-        cout
-            << NodeDefinition::nodeIdToName(id)
-            << " = "
-            << data.getString() << endl;
+        string name = NodeDefinition::nodeIdToName(id);
+        if (name.empty()) name = std::format("<UnknownId:0x{:08x}>", id);
+        cout << std::format("{} = {}", name, data.getString()) << endl;
     };
 
     cout << "Monitoring for changes..." << endl;
