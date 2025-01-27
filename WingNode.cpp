@@ -63,7 +63,7 @@ int
 NodeData::getInt() const
 {
     if (hasInt()) return _i;
-    if (hasFloat()) (int)return _f;
+    if (hasFloat()) return (int)_f;
     if (hasString()) return std::stoi(_s);
     return 0;
 }
