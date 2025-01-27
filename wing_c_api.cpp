@@ -26,37 +26,37 @@ wing_discover_destroy(wing_discover_t discover_handle)
 int
 wing_discover_count(wing_discover_t discover_handle)
 {
-    return discover_handle ? discover_handle->info.size() : 0;
+    return discover_handle->info.size();
 }
 
 const char *
 wing_discover_get_ip(wing_discover_t discover_handle, int index)
 {
-    return discover_handle ? discover_handle->info[index].ip.c_str() : nullptr;
+    return discover_handle->info[index].ip.c_str();
 }
 
 const char *
 wing_discover_get_name(wing_discover_t discover_handle, int index)
 {
-    return discover_handle ? discover_handle->info[index].name.c_str() : nullptr;
+    return discover_handle->info[index].name.c_str();
 }
 
 const char *
 wing_discover_get_model(wing_discover_t discover_handle, int index)
 {
-    return discover_handle ? discover_handle->info[index].model.c_str() : nullptr;
+    return discover_handle->info[index].model.c_str();
 }
 
 const char *
 wing_discover_get_serial(wing_discover_t discover_handle, int index)
 {
-    return discover_handle ? discover_handle->info[index].serial.c_str() : nullptr;
+    return discover_handle->info[index].serial.c_str();
 }
 
 const char *
 wing_discover_get_firmware(wing_discover_t discover_handle, int index)
 {
-    return discover_handle ? discover_handle->info[index].firmware.c_str() : nullptr;
+    return discover_handle->info[index].firmware.c_str();
 }
 
 wing_console_t
@@ -76,11 +76,9 @@ wing_console_set_request_end_callback(wing_console_t console_handle,
                                       WingRequestEndCallback cb,
                                       void *user_data)
 {
-    if (console_handle) {
-        console_handle->console.onRequestEnd = [cb, user_data]() {
-            cb(user_data);
-        };
-    }
+    console_handle->console.onRequestEnd = [cb, user_data]() {
+        cb(user_data);
+    };
 }
 
 void
@@ -88,12 +86,10 @@ wing_console_set_node_definition_callback( wing_console_t console_handle,
                                            WingNodeDefinitionCallback cb,
                                            void *user_data)
 {
-    if (console_handle) {
-        console_handle->console.onNodeDefinition = [cb,
+    console_handle->console.onNodeDefinition = [cb,
         user_data](NodeDefinition def) {
             cb(new _node_definition_t{def}, user_data);
         };
-    }
 }
 
 void
@@ -101,11 +97,9 @@ wing_console_set_node_data_callback(wing_console_t console_handle,
                                     WingNodeDataCallback cb,
                                     void *user_data)
 {
-    if (console_handle) {
-        console_handle->console.onNodeData = [cb, user_data](uint32_t id, NodeData data) {
-            cb(id, new _node_data_t{data}, user_data);
-        };
-    }
+    console_handle->console.onNodeData = [cb, user_data](uint32_t id, NodeData data) {
+        cb(id, new _node_data_t{data}, user_data);
+    };
 }
 
 void
@@ -118,9 +112,7 @@ wing_console_destroy(wing_console_t console_handle)
 void
 wing_console_read(wing_console_t console_handle)
 {
-    if (console_handle) {
-        console_handle->console.read();
-    }
+    console_handle->console.read();
 }
 
 void
@@ -128,9 +120,7 @@ wing_console_set_string(wing_console_t console_handle,
                         uint32_t id,
                         const char *value)
 {
-    if (console_handle && value) {
-        console_handle->console.setString(id, std::string(value));
-    }
+    console_handle->console.setString(id, std::string(value));
 }
 
 void
@@ -138,9 +128,7 @@ wing_console_set_float(wing_console_t console_handle,
                        uint32_t id,
                        float value)
 {
-    if (console_handle) {
-        console_handle->console.setFloat(id, value);
-    }
+    console_handle->console.setFloat(id, value);
 }
 
 void
@@ -148,27 +136,21 @@ wing_console_set_int(wing_console_t console_handle,
                      uint32_t id,
                      int value)
 {
-    if (console_handle) {
-        console_handle->console.setInt(id, value);
-    }
+    console_handle->console.setInt(id, value);
 }
 
 void
 wing_console_request_node_definition(wing_console_t console_handle,
                                      uint32_t id)
 {
-    if (console_handle) {
-        console_handle->console.requestNodeDefinition(id);
-    }
+    console_handle->console.requestNodeDefinition(id);
 }
 
 void
 wing_console_request_node_data(wing_console_t console_handle,
                                uint32_t id)
 {
-    if (console_handle) {
-        console_handle->console.requestNodeData(id);
-    }
+    console_handle->console.requestNodeData(id);
 }
 
 void
@@ -180,37 +162,33 @@ wing_node_definition_destroy(node_definition_t def_handle)
 node_type_t
 wing_node_definition_get_type(node_definition_t def)
 {
-    return def ? (node_type_t)def->def.getType() : NODE_TYPE_NODE;
+    return (node_type_t)def->def.getType();
 }
 
 node_unit_t
 wing_node_definition_get_unit(node_definition_t def)
 {
-    return def ? (node_unit_t)def->def.getUnit() : NODE_UNIT_NONE;
+    return (node_unit_t)def->def.getUnit();
 }
 
 int
 wing_node_definition_is_read_only(node_definition_t def)
 {
-    return def ? (def->def.isReadOnly() ? 1 : 0) : 0;
+    return def->def.isReadOnly() ? 1 : 0;
 }
 
 uint32_t
 wing_node_name_to_id(const char* name)
 {
-    return name ? NodeDefinition::nodeNameToId(std::string(name)) : 0;
+    return NodeDefinition::nodeNameToId(std::string(name));
 }
 
 void
 wing_node_id_to_name(uint32_t id, char* buffer, size_t buffer_size)
 {
     std::string name = NodeDefinition::nodeIdToName(id);
-    if (name.empty()) {
-        buffer[0] = '\0';
-    } else {
-        strncpy(buffer, name.c_str(), buffer_size - 1);
-        buffer[buffer_size - 1] = '\0';
-    }
+    strncpy(buffer, name.c_str(), buffer_size - 1);
+    buffer[buffer_size - 1] = '\0';
 }
 
 void
@@ -239,19 +217,19 @@ int wing_node_data_get_int(node_data_t data) {
 int
 wing_node_data_has_string(node_data_t data)
 {
-    return (data->data.hasString() ? 1 : 0);
+    return data->data.hasString() ? 1 : 0;
 }
 
 int
 wing_node_data_has_float(node_data_t data)
 {
-    return (data->data.hasFloat() ? 1 : 0);
+    return data->data.hasFloat() ? 1 : 0;
 }
 
 int
 wing_node_data_has_int(node_data_t data)
 {
-    return (data->data.hasInt() ? 1 : 0);
+    return data->data.hasInt() ? 1 : 0;
 }
 
 uint32_t
