@@ -9,9 +9,13 @@
 #include <vector>
 #include <errno.h>
 #include <fcntl.h>
+#if _WIN32
+#include <winsock.h>
+#else
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#endif
 
 #include "WingConsole.h"
 

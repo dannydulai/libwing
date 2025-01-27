@@ -26,7 +26,7 @@ wing_discover_destroy(wing_discover_t discover_handle)
 int
 wing_discover_count(wing_discover_t discover_handle)
 {
-    return discover_handle->info.size();
+    return (int)discover_handle->info.size();
 }
 
 const char *

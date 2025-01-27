@@ -54,7 +54,7 @@ float
 NodeData::getFloat() const
 {
     if (hasFloat()) return _f;
-    if (hasInt()) return _i;
+    if (hasInt()) return (float)_i;
     if (hasString()) return std::stof(_s);
     return 0;
 }
@@ -63,7 +63,7 @@ int
 NodeData::getInt() const
 {
     if (hasInt()) return _i;
-    if (hasFloat()) return _f;
+    if (hasFloat()) (int)return _f;
     if (hasString()) return std::stoi(_s);
     return 0;
 }
