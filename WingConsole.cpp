@@ -11,7 +11,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #if _WIN32
-#include <winsock.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <Ws2ipdef.h>
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -40,7 +42,7 @@ public:
 
     void close() {
         if (_sock >= 0) {
-            ::shutdown(_sock, SHUT_RDWR);
+            ::shutdown(_sock, 2);
             _sock = -1;
         }
     }
@@ -67,7 +69,7 @@ WingConsole::scan(bool stopOnFirst)
     int broadcastEnable = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable)) < 0) {
         int err = errno;
-        shutdown(sock, SHUT_RDWR);
+        ::shutdown(sock, 2);
         throw std::system_error(err, std::system_category(), "Error enabling broadcast sends on discovery socket");
     }
 
@@ -80,7 +82,7 @@ WingConsole::scan(bool stopOnFirst)
     char discoveryMsg[] = "WING?";
     if (sendto(sock, discoveryMsg, strlen(discoveryMsg), 0, (struct sockaddr*)&broadcastAddr, sizeof(broadcastAddr)) < 0) {
         int err = errno;
-        shutdown(sock, SHUT_RDWR);
+        ::shutdown(sock, 2);
         throw std::system_error(err, std::system_category(), "Error sending broadcast discovery packet");
     }
 
@@ -140,7 +142,7 @@ WingConsole::scan(bool stopOnFirst)
         i++;
     }
 
-    ::shutdown(sock, SHUT_RDWR);
+    ::shutdown(sock, 2);
     return discovered;
 }
 
@@ -209,7 +211,7 @@ keepAlive(int sock)
 {
     // Some computation here
     auto now = system_clock::now();
- 
+
     duration<double> elapsed_seconds = now-_keepAliveTime;
     if (elapsed_seconds.count() > TIMEOUT_KEEP_ALIVE) {
         unsigned char buf[] = { 0xdf, 0xd1 }; // switch to channel 2 (Audio Ending & Control requests)
