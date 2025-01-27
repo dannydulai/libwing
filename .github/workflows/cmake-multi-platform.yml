@@ -65,6 +65,7 @@ jobs:
         -S ${{ github.workspace }}
 
     - name: Build
+      timeout-minutes: 30 # Increase the timeout limit to 30 minutes (or as needed)
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
