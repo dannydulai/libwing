@@ -8,32 +8,30 @@ using namespace std;
 int
 main()
 {
-    cout << "Discovering Behringer Wing consoles..." << endl;
+    printf("Discovering Behringer Wing consoles...\n");
     auto discovered = WingConsole::scan();
     
     if (discovered.empty()) {
-        cerr << "No Behringer Wing consoles found" << endl;
+        printf("No Behringer Wing consoles found.\n");
         return 1;
     } else {
-        cout << format("Found {} console(s):\n",
-                                 discovered.size());
+        printf("Found %zu consoles(s):\n", discovered.size());
         for (size_t i = 0; i < discovered.size(); i++) {
-            cout << format("    {}. {} ({})\n",
-                                     i+1,
-                                     discovered[i].name,
-                                     discovered[i].ip);
+            printf("    %zu. %s (%s)\n", i+1, discovered[i].name.c_str(), discovered[i].ip.c_str());
         }
+        fflush(stdout);
     }
 
-    cout
-        << "Connecting to Behringer Wing console "
-        << discovered[0].name << endl;
+    printf("Connecting to Behringer Wing console %s\n", discovered[0].name.c_str());
 
     auto console = WingConsole::connect(discovered[0].ip);
     console.onNodeData = [&](auto id, auto data) {
         string name = NodeDefinition::nodeIdToName(id);
-        if (name.empty()) name = std::format("<UnknownId:0x{:08x}>", id);
-        cout << std::format("{} = {}", name, data.getString()) << endl;
+        if (name.empty()) {
+            printf("<UnknownId:0x%08x> = %s\n", id, data.getString().c_str());
+        } else {
+            printf("%s = %s\n", name.c_str(), data.getString().c_str());
+        }
     };
 
     cout << "Monitoring for changes..." << endl;
