@@ -1,8 +1,12 @@
 # Introduction
 
-This software includes a C/C++ library for discovering and controlling
-the [Behringer Wing](https://www.behringer.com/behringer/wing) mixer over the
-local network. It also includes a series of utilities built using this library.
+This software includes a library for discovering and controlling the [Behringer
+Wing](https://www.behringer.com/behringer/wing) mixer over the local network.
+It also includes a series of utilities built using this library.
+
+The main library is written in C++, but it does also include a C wrapper. There
+is also a [dart](https://dart.dev) wrapper (for making Flutter apps) that uses
+the C wrapper.
 
 ![Behringer Wing Family](wing.jpg)
 
