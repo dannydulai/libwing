@@ -62,11 +62,14 @@ console.onNodeDefinition = [](NodeDefinition node) {
 // Called when node data/values are received, in response to a request or
 // unsolicited due to manipulation of the console
 console.onNodeData = [](uint32_t id, NodeData data) {
-    std::cout << std::format("Node {} ({}) = {}",
-                             NodeDefinition::nodeIdToName(id),
-                             id,
-                             data.getString())
-              << std::endl;
+    std::cout
+        << "Node "
+        << NodeDefinition::nodeIdToName(id)
+        << " ("
+        << id
+        << ") = "
+        << data.getString()
+        << std::endl;
 };
 
 // Called when a request is complete. You will get one of these for each time

@@ -21,7 +21,7 @@ This library is called **libwing**. You can find information on using the librar
 - MacOS, Linux, Windows
 - cmake
 - make
-- C++20 compiler
+- C++17 compiler
 
 #### Building
 

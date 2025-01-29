@@ -1,6 +1,8 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
+#include <chrono>
+#include <fmt/core.h>
 
 #include "WingConsole.h"
 
@@ -36,12 +38,12 @@ printNode(int nodeId, bool recurs)
     if (n.parentId == 0) fullname = "/" + fullname;
 
     vector<string> parts;
-    parts.push_back(format("\"id\": {:10d}", def.id));
-    parts.push_back(format("\"fullName\": \"{}\"", fullname));
+    parts.push_back(fmt::format("\"id\": {:10d}", def.id));
+    parts.push_back(fmt::format("\"fullName\": \"{}\"", fullname));
 
-    if (def.index != 0)        parts.push_back(format("\"idx\": \"{}\"", def.index));
-    if (!def.name.empty())     parts.push_back(format("\"name\": \"{}\"", def.name));
-    if (!def.longName.empty()) parts.push_back(format("\"longname\": \"{}\"", def.longName));
+    if (def.index != 0)        parts.push_back(fmt::format("\"idx\": \"{}\"", def.index));
+    if (!def.name.empty())     parts.push_back(fmt::format("\"name\": \"{}\"", def.name));
+    if (!def.longName.empty()) parts.push_back(fmt::format("\"longname\": \"{}\"", def.longName));
 
     switch (def.getType()) {
         case WingNode::TYPE_NODE:              parts.push_back("\"type\": \"node\"");              break;
@@ -68,46 +70,46 @@ printNode(int nodeId, bool recurs)
     }
 
     if (def.getType() == WingNode::TYPE_STRING) {
-        parts.push_back(format("\"maxStringLen\": {},", def.maxStringLen));
+        parts.push_back(fmt::format("\"maxStringLen\": {},", def.maxStringLen));
     } else if (def.getType() == WingNode::TYPE_LINEAR_FLOAT || def.getType() == WingNode::TYPE_LOGARITHMIC_FLOAT) {
-        parts.push_back(format("\"minFloat\": {}, ", def.minFloat));
-        parts.push_back(format("\"maxFloat\": {}, ", def.maxFloat));
-        parts.push_back(format("\"steps\": {}, ", def.steps));
+        parts.push_back(fmt::format("\"minFloat\": {}, ", def.minFloat));
+        parts.push_back(fmt::format("\"maxFloat\": {}, ", def.maxFloat));
+        parts.push_back(fmt::format("\"steps\": {}, ", def.steps));
     } else if (def.getType() == WingNode::TYPE_INTEGER) {
-        parts.push_back(format("\"minInt\": {}, ", def.minInt));
-        parts.push_back(format("\"maxInt\": {}, ", def.maxInt));
+        parts.push_back(fmt::format("\"minInt\": {}, ", def.minInt));
+        parts.push_back(fmt::format("\"maxInt\": {}, ", def.maxInt));
     } else if (def.getType() == WingNode::TYPE_STRING_ENUM && !def.stringEnum.empty()) {
         vector<string> parts2;
         string parts2str;
 
         for (auto item : def.stringEnum) {
             if (!item.longitem.empty())
-                parts2.push_back(format("{{ \"item\": \"{}\", \"text\": \"{}\" }}", item.item, item.longitem));
+                parts2.push_back(fmt::format("{{ \"item\": \"{}\", \"text\": \"{}\" }}", item.item, item.longitem));
             else
-                parts2.push_back(format("{{ \"item\": \"{}\" }}", item.item));
+                parts2.push_back(fmt::format("{{ \"item\": \"{}\" }}", item.item));
         }
 
         for (int k = 0; k < parts2.size(); k++) {
             if (k != 0) parts2str += ", ";
             parts2str += parts2[k];
         }
-        parts.push_back(format("\"enumOptions\": [ {} ]", parts2str));
+        parts.push_back(fmt::format("\"enumOptions\": [ {} ]", parts2str));
     } else if (def.getType() == WingNode::TYPE_FLOAT_ENUM && !def.floatEnum.empty()) {
         vector<string> parts2;
         string parts2str;
 
         for (auto item : def.stringEnum) {
             if (!item.longitem.empty())
-                parts2.push_back(format("{{ \"item\": \"{}\", \"text\": \"{}\" }}", item.item, item.longitem));
+                parts2.push_back(fmt::format("{{ \"item\": \"{}\", \"text\": \"{}\" }}", item.item, item.longitem));
             else
-                parts2.push_back(format("{{ \"item\": \"{}\" }}", item.item));
+                parts2.push_back(fmt::format("{{ \"item\": \"{}\" }}", item.item));
         }
 
         for (int k = 0; k < parts2.size(); k++) {
             if (k != 0) parts2str += ", ";
             parts2str += parts2[k];
         }
-        parts.push_back(format("\"enumOptions\": [ {} ]", parts2str));
+        parts.push_back(fmt::format("\"enumOptions\": [ {} ]", parts2str));
     }
 
     schemaFile << "{";
@@ -117,7 +119,7 @@ printNode(int nodeId, bool recurs)
     }
     schemaFile << "}\n";
 
-    dataFile << format("{{ \"{}\", {:10d} }},\n", fullname, def.id);
+    dataFile << fmt::format("{{ \"{}\", {:10d} }},\n", fullname, def.id);
 
     for (int child : _nodeParentToChildren[nodeId]) {
         printNode(child, recurs);
@@ -177,13 +179,13 @@ main()
         cerr << "No Behringer Wing discovered found" << endl;
         return 1;
     } else {
-        cout << format("Found {} console(s):\n",
-                                 discovered.size());
+        cout << fmt::format("Found {} console(s):\n",
+                            discovered.size());
         for (size_t i = 0; i < discovered.size(); i++) {
-            cout << format("    {}. {} ({})\n",
-                                     i+1,
-                                     discovered[i].name,
-                                     discovered[i].ip);
+            cout << fmt::format("    {}. {} ({})\n",
+                                i+1,
+                                discovered[i].name,
+                                discovered[i].ip);
         }
     }
 
@@ -218,7 +220,7 @@ main()
     console.onNodeDefinition = [](NodeDefinition node) {
         _nodeIdToDef[node.id] = node;
         _nodeParentToChildren[node.parentId].push_back(node.id);
-        cout << format("\rReceived {} properties",
+        cout << fmt::format("\rReceived {} properties",
                                  _nodeIdToDef.size());
         cout.flush();
     };
@@ -229,7 +231,7 @@ main()
     time_t end_time = system_clock::to_time_t(system_clock::now());
     dataFile
         << "// Generated by wingschema from a Behringer Wing,\n"
-        << format("// model {}, firmware {}, on {}",
+        << fmt::format("// model {}, firmware {}, on {}",
                        discovered[0].model,
                        discovered[0].firmware,
                        ctime(&end_time))

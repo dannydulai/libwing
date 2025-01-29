@@ -5,8 +5,16 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG        11.1.3
+)
+FetchContent_MakeAvailable(fmt)
 
 # Create static library
 add_library(wingstatic STATIC
@@ -23,8 +31,8 @@ add_library(wing SHARED
 
 # Create executable that uses the library
 add_executable(wingschema wingschema.cpp)
-target_link_libraries(wingschema PRIVATE wingstatic)
+target_link_libraries(wingschema PRIVATE wingstatic fmt)
 
 # Create executable that uses the library
 add_executable(wingmon wingmon.cpp)
-target_link_libraries(wingmon PRIVATE wingstatic)
+target_link_libraries(wingmon PRIVATE wingstatic fmt)

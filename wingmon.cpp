@@ -1,5 +1,6 @@
 #include <cstring>
 #include <iostream>
+#include <fmt/core.h>
 
 #include "WingConsole.h"
 
@@ -15,13 +16,13 @@ main()
         cerr << "No Behringer Wing consoles found" << endl;
         return 1;
     } else {
-        cout << format("Found {} console(s):\n",
-                                 discovered.size());
+        cout << fmt::format("Found {} console(s):\n",
+                            discovered.size());
         for (size_t i = 0; i < discovered.size(); i++) {
-            cout << format("    {}. {} ({})\n",
-                                     i+1,
-                                     discovered[i].name,
-                                     discovered[i].ip);
+            cout << fmt::format("    {}. {} ({})\n",
+                                i+1,
+                                discovered[i].name,
+                                discovered[i].ip);
         }
     }
 
@@ -32,8 +33,8 @@ main()
     auto console = WingConsole::connect(discovered[0].ip);
     console.onNodeData = [&](auto id, auto data) {
         string name = NodeDefinition::nodeIdToName(id);
-        if (name.empty()) name = std::format("<UnknownId:0x{:08x}>", id);
-        cout << std::format("{} = {}", name, data.getString()) << endl;
+        if (name.empty()) name = fmt::format("<UnknownId:0x{:08x}>", id);
+        cout << fmt::format("{} = {}", name, data.getString()) << endl;
     };
 
     cout << "Monitoring for changes..." << endl;
