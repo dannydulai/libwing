@@ -70,14 +70,14 @@ printNode(int nodeId, bool recurs)
     }
 
     if (def.getType() == WingNode::TYPE_STRING) {
-        parts.push_back(fmt::format("\"maxStringLen\": {},", def.maxStringLen));
+        parts.push_back(fmt::format("\"maxStringLen\": {}", def.maxStringLen));
     } else if (def.getType() == WingNode::TYPE_LINEAR_FLOAT || def.getType() == WingNode::TYPE_LOGARITHMIC_FLOAT) {
-        parts.push_back(fmt::format("\"minFloat\": {}, ", def.minFloat));
-        parts.push_back(fmt::format("\"maxFloat\": {}, ", def.maxFloat));
-        parts.push_back(fmt::format("\"steps\": {}, ", def.steps));
+        parts.push_back(fmt::format("\"minFloat\": {}", def.minFloat));
+        parts.push_back(fmt::format("\"maxFloat\": {}", def.maxFloat));
+        parts.push_back(fmt::format("\"steps\": {}", def.steps));
     } else if (def.getType() == WingNode::TYPE_INTEGER) {
-        parts.push_back(fmt::format("\"minInt\": {}, ", def.minInt));
-        parts.push_back(fmt::format("\"maxInt\": {}, ", def.maxInt));
+        parts.push_back(fmt::format("\"minInt\": {}", def.minInt));
+        parts.push_back(fmt::format("\"maxInt\": {}", def.maxInt));
     } else if (def.getType() == WingNode::TYPE_STRING_ENUM && !def.stringEnum.empty()) {
         vector<string> parts2;
         string parts2str;
