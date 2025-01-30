@@ -44,6 +44,7 @@ NodeDefinition::initMap(const std::string& pathToMapFile)
             throw std::system_error(errno, std::system_category(), "Error reading map file");
         }
         _nodeHashToName[hash] = name;
+        _nodeNameToHash[name] = hash;
     }
 }
 
@@ -56,11 +57,6 @@ NodeDefinition::nodeNameToId(const std::string& fullname)
 std::string
 NodeDefinition::nodeIdToName(uint32_t id)
 {
-    if (_nodeHashToName.size() != _nodeNameToHash.size()) {
-        for (auto& [name, hash] : _nodeNameToHash) {
-            _nodeHashToName[hash] = name;
-        }
-    }
     return _nodeHashToName[id];
 }
 
