@@ -68,6 +68,7 @@ void     wing_console_set_request_end_callback    (wing_console_t, WingRequestEn
 void     wing_console_set_node_definition_callback(wing_console_t, WingNodeDefinitionCallback callback, void* user_data);
 void     wing_console_set_node_data_callback      (wing_console_t, WingNodeDataCallback callback, void* user_data);
 
+int         wing_node_init_map                         (const char* path_to_map_file);
 uint32_t    wing_node_name_to_id                       (const char* name);
 void        wing_node_id_to_name                       (uint32_t id, char* buffer, size_t buffer_size);
 

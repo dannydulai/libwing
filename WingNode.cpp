@@ -1,4 +1,4 @@
-#include <cstring>
+#include <cstdio>
 
 #include "WingNode.h"
 
@@ -21,9 +21,30 @@ NodeDefinition::isReadOnly() const
 }
 
 static std::map<uint32_t, std::string> _nodeHashToName;
-static std::map<std::string, uint32_t> _nodeNameToHash = {
-#include "wing-schema.cpp"
-};
+static std::map<std::string, uint32_t> _nodeNameToHash;
+
+void
+NodeDefinition::initMap(const std::string& pathToMapFile)
+{
+    FILE *mapFile = fopen(pathToMapFile.c_str(), "rb");
+    if (mapFile == nullptr) {
+        throw std::system_error(errno, std::system_category(), "Error opening map file");
+    }
+
+    while (!feof(mapFile)) {
+        unsigned char buf[5];
+        if (fread(buf, 5, 1, mapFile) != 1) {
+            if (feof(mapFile)) break;
+            throw std::system_error(errno, std::system_category(), "Error reading map file");
+        }
+        uint32_t hash = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
+        auto name = std::string(buf[4], 'a');
+        if (fread((void*)name.c_str(), buf[4], 1, mapFile) != 1) {
+            throw std::system_error(errno, std::system_category(), "Error reading map file");
+        }
+        _nodeHashToName[hash] = name;
+    }
+}
 
 uint32_t
 NodeDefinition::nodeNameToId(const std::string& fullname)

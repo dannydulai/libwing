@@ -47,12 +47,11 @@ network.
 `wing-schema.jsonl` is for you to read, learn, and use as you want. It is a
 great resource for understanding the Wing's capabilities.
 
-`wing-schema.cpp` is used by **libwing**. It contains a "name to ID" mapping of
-all the Wing's nodes and parameters. Just re-building **libwing** picks up this
-new file. **libwing** uses this mapping to provide a nice way to convert
-between names and the Wing node/parameter IDs. I include a wing-schema.cpp in
-the repo so you don't have to run this, but you can always run it again if you
-want to get the latest schema from newer versions of the firmware.
+`wing-schema.map` is loaded by **libwing** when you call
+`NodeDefinition::initMap(pathToMapFile)`. It contains a "name to ID" mapping of
+all the Wing's nodes and parameters. You can call this function at any time
+before calling the NodeDefinition::nodeNameToId() or NodeDefinition::nodeIdToName()
+functions. If you don't call initMap(), these 2 functions will not do much.
 
 ### wingmon
 

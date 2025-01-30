@@ -60,6 +60,7 @@ struct NodeDefinition {
     bool                 isReadOnly() const;
 
     // convert between node names and ids
+    static void        initMap(const std::string& pathToMapFile);
     static uint32_t    nodeNameToId(const std::string& fullname);
     static std::string nodeIdToName(uint32_t id);
 };

@@ -177,6 +177,17 @@ wing_node_definition_is_read_only(node_definition_t def)
     return def->def.isReadOnly() ? 1 : 0;
 }
 
+int
+wing_node_init_map(const char* path_to_map_file)
+{
+    try {
+        NodeDefinition::initMap(std::string(path_to_map_file));
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
 uint32_t
 wing_node_name_to_id(const char* name)
 {

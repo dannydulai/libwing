@@ -1,7 +1,7 @@
 #include <cstring>
 #include <iostream>
-#include <fmt/core.h>
 
+#include "fmt/core.h"
 #include "WingConsole.h"
 
 using namespace std;
@@ -9,9 +9,11 @@ using namespace std;
 int
 main()
 {
+    NodeDefinition::initMap("wing-schema.map");
+
     cout << "Discovering Behringer Wing consoles..." << endl;
     auto discovered = WingConsole::scan();
-    
+
     if (discovered.empty()) {
         cerr << "No Behringer Wing consoles found" << endl;
         return 1;
