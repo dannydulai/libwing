@@ -26,6 +26,9 @@ pub struct WingConsole {
     pub on_request_end: Option<Box<dyn FnMut()>>,
     pub on_node_definition: Option<Box<dyn FnMut(NodeDefinition)>>,
     pub on_node_data: Option<Box<dyn FnMut(u32, NodeData)>>,
+    node_def_buffer: Vec<u8>,
+    node_data_buffer: Vec<u8>,
+    current_node_id: u32,
 }
 
 impl WingConsole {
@@ -176,10 +179,6 @@ impl WingConsole {
         Ok(())
     }
 
-    // State for accumulating node definition/data
-    node_def_buffer: Vec<u8>,
-    node_data_buffer: Vec<u8>,
-    current_node_id: u32,
 
     fn accumulate_node_definition(&mut self, value: u8) -> Result<Option<NodeDefinition>> {
         self.node_def_buffer.push(value);
