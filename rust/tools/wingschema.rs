@@ -41,32 +41,34 @@ fn main() -> wing::Result<()> {
     println!("Connected!");
 
     // Track parent-child relationships and node definitions
-    let mut node_parent_to_children: HashMap<i32, Vec<i32>> = HashMap::new();
-    let mut node_id_to_def: HashMap<i32, NodeDefinition> = HashMap::new();
+    let node_parent_to_children = Arc::new(Mutex::new(HashMap::<i32, Vec<i32>>::new()));
+    let node_id_to_def = Arc::new(Mutex::new(HashMap::<i32, NodeDefinition>::new()));
     let pending_requests = Arc::new(AtomicI32::new(0));
+
+    let node_parent_to_children2 = node_parent_to_children.clone();
+    let node_id_to_def2 = node_id_to_def.clone();
     let pending_requests2 = pending_requests.clone();
     let console2 = console.clone();
 
-    let stdout = io::stdout();
-    let stdout = std::sync::Mutex::new(stdout);
-    let stdout1 = std::sync::Arc::new(stdout);
-
-    console.on_node_definition = Some(Box::new(move |def: NodeDefinition| {
-        let mut stdout = stdout1.lock().unwrap();
-        // Store the node definition
-        let node_id = def.id;
-        let parent_id = def.parent_id;
-        
-        // Update parent-child relationship
-        node_parent_to_children.entry(parent_id)
-            .or_insert_with(Vec::new)
-            .push(node_id);
+    {
+        let mut console = console.lock().unwrap();
+        console.on_node_definition = Some(Box::new(move |def: NodeDefinition| {
+            // Store the node definition
+            let node_id = def.id;
+            let parent_id = def.parent_id;
             
-        // Store node definition
-        node_id_to_def.insert(node_id, def.clone());
+            // Update parent-child relationship
+            node_parent_to_children2.lock().unwrap()
+                .entry(parent_id)
+                .or_insert_with(Vec::new)
+                .push(node_id);
+                
+            // Store node definition
+            node_id_to_def2.lock().unwrap()
+                .insert(node_id, def.clone());
         
         // Print progress
-        print!("\rReceived {} properties", node_id_to_def.len());
+        print!("\rReceived {} properties", node_id_to_def2.lock().unwrap().len());
         io::stdout().flush().unwrap();
 
         // For node types that can have children, request their definitions
