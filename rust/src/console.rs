@@ -100,7 +100,22 @@ impl WingConsole {
                 // Process received data
                 while self.rx_buf_size > 0 {
                     let (channel, value) = self.decode_next()?;
-                    // Handle decoded data...
+                    if value != 0 {
+                        match channel {
+                            0 => if let Some(ref mut cb) = self.on_request_end {
+                                cb();
+                            },
+                            1 => {
+                                // Handle node definition data
+                                // TODO: Accumulate definition data and call callback
+                            },
+                            2 => {
+                                // Handle node data
+                                // TODO: Accumulate node data and call callback
+                            },
+                            _ => {}
+                        }
+                    }
                 }
                 
                 Ok(())
@@ -115,12 +130,23 @@ impl WingConsole {
             return Err(Error::InvalidData);
         }
 
-        let mut channel = -1;
-        let mut value = 0u8;
+        let byte = self.rx_buf[self.rx_buf_tail];
+        self.rx_buf_tail = (self.rx_buf_tail + 1) % RX_BUFFER_SIZE;
+        self.rx_buf_size -= 1;
 
-        // Implement protocol decoding here...
-
-        Ok((channel, value))
+        if self.rx_esc {
+            self.rx_esc = false;
+            Ok((self.rx_current_channel, byte ^ 0x20))
+        } else if byte == 0x1B {
+            self.rx_esc = true;
+            Ok((self.rx_current_channel, 0))
+        } else if byte >= 0x20 {
+            self.rx_current_channel = (byte & 0x1F) as i32;
+            self.rx_has_in_pipe = (byte & 0x20) != 0;
+            Ok((self.rx_current_channel, 0))
+        } else {
+            Ok((self.rx_current_channel, byte))
+        }
     }
 
     pub fn request_node_definition(&mut self, id: u32) -> Result<()> {
@@ -141,7 +167,15 @@ impl WingConsole {
 
     fn format_id(&self, id: u32, buf: &mut [u8], prefix: u8, suffix: u8) -> Result<()> {
         buf[0] = prefix;
-        // Format ID as hex...
+        // Format ID as 6 hex digits
+        for i in 0..6 {
+            let digit = ((id >> (20 - 4 * i)) & 0xF) as u8;
+            buf[i + 1] = if digit < 10 {
+                b'0' + digit
+            } else {
+                b'A' + (digit - 10)
+            };
+        }
         buf[7] = suffix;
         Ok(())
     }
