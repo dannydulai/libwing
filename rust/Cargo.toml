@@ -1,0 +1,18 @@
+[package]
+name = "wing-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "wing"
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+libc = "0.2"
+thiserror = "1.0"
+socket2 = "0.5"
+```
+
+rust/src/lib.rs
+```rust
+<<<<<<< SEARCH
