@@ -37,66 +37,6 @@ fn main() -> wing::Result<()> {
     let mut console = WingConsole::connect(&device.ip)?;
     println!("Connected!");
 
-    let mut stdout = io::stdout();
-    
-    console.on_node_definition = Some(Box::new(move |def: NodeDefinition| {
-        let mut json = serde_json::json!({
-            "id": format!("{:06X}", def.id),
-            "parent_id": format!("{:06X}", def.parent_id),
-            "name": def.name,
-            "long_name": def.long_name,
-            "type": format!("{:?}", def.node_type),
-            "unit": format!("{:?}", def.unit),
-            "read_only": def.read_only,
-        });
-
-        match def.node_type {
-            wing::NodeType::LinearFloat | 
-            wing::NodeType::LogarithmicFloat |
-            wing::NodeType::FaderLevel => {
-                json.as_object_mut().unwrap().extend(serde_json::json!({
-                    "min_float": def.min_float,
-                    "max_float": def.max_float,
-                    "steps": def.steps,
-                }).as_object().unwrap().clone());
-            }
-            wing::NodeType::Integer => {
-                json.as_object_mut().unwrap().extend(serde_json::json!({
-                    "min_int": def.min_int,
-                    "max_int": def.max_int,
-                }).as_object().unwrap().clone());
-            }
-            wing::NodeType::String => {
-                json.as_object_mut().unwrap().extend(serde_json::json!({
-                    "max_string_len": def.max_string_len,
-                }).as_object().unwrap().clone());
-            }
-            wing::NodeType::StringEnum => {
-                json.as_object_mut().unwrap().extend(serde_json::json!({
-                    "items": def.string_enum.iter().map(|item| {
-                        serde_json::json!({
-                            "item": item.item,
-                            "longitem": item.longitem,
-                        })
-                    }).collect::<Vec<_>>(),
-                }).as_object().unwrap().clone());
-            }
-            wing::NodeType::FloatEnum => {
-                json.as_object_mut().unwrap().extend(serde_json::json!({
-                    "items": def.float_enum.iter().map(|item| {
-                        serde_json::json!({
-                            "item": item.item,
-                            "longitem": item.longitem,
-                        })
-                    }).collect::<Vec<_>>(),
-                }).as_object().unwrap().clone());
-            }
-            _ => {}
-        }
-        writeln!(stdout, "{}", serde_json::to_string(&json).unwrap()).unwrap();
-        stdout.flush().unwrap();
-    }));
-
     // Track parent-child relationships and node definitions
     let mut node_parent_to_children: HashMap<i32, Vec<i32>> = HashMap::new();
     let mut node_id_to_def: HashMap<i32, NodeDefinition> = HashMap::new();
