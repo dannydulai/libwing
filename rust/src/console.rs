@@ -83,6 +83,9 @@ impl WingConsole {
             on_request_end: None,
             on_node_definition: None,
             on_node_data: None,
+            node_def_buffer: Vec::new(),
+            node_data_buffer: Vec::new(),
+            current_node_id: 0,
         })
     }
 
@@ -173,17 +176,93 @@ impl WingConsole {
         Ok(())
     }
 
+    // State for accumulating node definition/data
+    node_def_buffer: Vec<u8>,
+    node_data_buffer: Vec<u8>,
+    current_node_id: u32,
+
     fn accumulate_node_definition(&mut self, value: u8) -> Result<Option<NodeDefinition>> {
-        // TODO: Implement node definition accumulation from protocol data
-        // This should parse the incoming bytes and construct a NodeDefinition
-        // when complete
+        self.node_def_buffer.push(value);
+        
+        // Check if we have a complete definition
+        if value == b'\n' {
+            let def_str = String::from_utf8_lossy(&self.node_def_buffer);
+            let parts: Vec<&str> = def_str.trim().split(',').collect();
+            
+            if parts.len() >= 12 {
+                let def = NodeDefinition {
+                    id: u32::from_str_radix(parts[0], 16).unwrap_or(0),
+                    parent_id: u32::from_str_radix(parts[1], 16).unwrap_or(0),
+                    index: parts[2].parse().unwrap_or(0),
+                    name: parts[3].to_string(),
+                    long_name: parts[4].to_string(),
+                    node_type: match parts[5].parse().unwrap_or(0) {
+                        0 => NodeType::Node,
+                        1 => NodeType::LinearFloat,
+                        2 => NodeType::LogarithmicFloat,
+                        3 => NodeType::FaderLevel,
+                        4 => NodeType::Integer,
+                        5 => NodeType::StringEnum,
+                        6 => NodeType::FloatEnum,
+                        7 => NodeType::String,
+                        _ => NodeType::Node,
+                    },
+                    unit: match parts[6].parse().unwrap_or(0) {
+                        0 => NodeUnit::None,
+                        1 => NodeUnit::Db,
+                        2 => NodeUnit::Percent,
+                        3 => NodeUnit::Milliseconds,
+                        4 => NodeUnit::Hertz,
+                        5 => NodeUnit::Meters,
+                        6 => NodeUnit::Seconds,
+                        7 => NodeUnit::Octaves,
+                        _ => NodeUnit::None,
+                    },
+                    read_only: parts[7] == "1",
+                    min_float: parts[8].parse().unwrap_or(0.0),
+                    max_float: parts[9].parse().unwrap_or(0.0),
+                    steps: parts[10].parse().unwrap_or(0),
+                    min_int: parts[11].parse().unwrap_or(0),
+                    max_int: parts[12].parse().unwrap_or(0),
+                    max_string_len: parts[13].parse().unwrap_or(0),
+                    string_enum: Vec::new(), // TODO: Parse enum items
+                    float_enum: Vec::new(),  // TODO: Parse enum items
+                };
+                
+                self.node_def_buffer.clear();
+                return Ok(Some(def));
+            }
+            
+            self.node_def_buffer.clear();
+        }
+        
         Ok(None)
     }
 
     fn accumulate_node_data(&mut self, value: u8) -> Result<Option<(u32, NodeData)>> {
-        // TODO: Implement node data accumulation from protocol data
-        // This should parse the incoming bytes and construct a NodeData
-        // when complete
+        self.node_data_buffer.push(value);
+        
+        // Check if we have a complete data packet
+        if value == b'\n' {
+            let data_str = String::from_utf8_lossy(&self.node_data_buffer);
+            let parts: Vec<&str> = data_str.trim().split(',').collect();
+            
+            if parts.len() >= 2 {
+                let id = u32::from_str_radix(parts[0], 16).unwrap_or(0);
+                let data = match parts[1].chars().next() {
+                    Some('S') => NodeData::with_string(parts[2..].join(",").trim().to_string()),
+                    Some('F') => NodeData::with_float(parts[2].parse().unwrap_or(0.0)),
+                    Some('I') => NodeData::with_int(parts[2].parse().unwrap_or(0)),
+                    _ => NodeData::new(),
+                };
+                
+                self.node_data_buffer.clear();
+                return Ok(Some((id, data)));
+            }
+            
+            self.node_data_buffer.clear();
+        }
+        
         Ok(None)
     }
 
