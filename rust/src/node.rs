@@ -133,4 +133,19 @@ impl NodeDefinition {
     pub fn is_read_only(&self) -> bool {
         self.read_only
     }
+
+    pub fn init_map(path_to_map_file: &str) -> crate::Result<()> {
+        // TODO: Implement map file loading
+        Ok(())
+    }
+
+    pub fn node_name_to_id(fullname: &str) -> u32 {
+        // TODO: Implement name to ID lookup
+        0
+    }
+
+    pub fn node_id_to_name(id: u32) -> String {
+        // TODO: Implement ID to name lookup
+        String::new()
+    }
 }
