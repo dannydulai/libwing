@@ -224,8 +224,44 @@ impl WingConsole {
                     min_int: parts[11].parse().unwrap_or(0),
                     max_int: parts[12].parse().unwrap_or(0),
                     max_string_len: parts[13].parse().unwrap_or(0),
-                    string_enum: Vec::new(), // TODO: Parse enum items
-                    float_enum: Vec::new(),  // TODO: Parse enum items
+                    string_enum: if parts.len() > 14 {
+                        parts[14].split(';')
+                            .filter_map(|pair| {
+                                let items: Vec<&str> = pair.split('=').collect();
+                                if items.len() == 2 {
+                                    Some(StringEnumItem {
+                                        item: items[0].to_string(),
+                                        longitem: items[1].to_string(),
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    float_enum: if parts.len() > 15 {
+                        parts[15].split(';')
+                            .filter_map(|pair| {
+                                let items: Vec<&str> = pair.split('=').collect();
+                                if items.len() == 2 {
+                                    if let Ok(val) = items[0].parse() {
+                                        Some(FloatEnumItem {
+                                            item: val,
+                                            longitem: items[1].to_string(),
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
                 };
                 
                 self.node_def_buffer.clear();

@@ -135,17 +135,38 @@ impl NodeDefinition {
     }
 
     pub fn init_map(path_to_map_file: &str) -> crate::Result<()> {
-        // TODO: Implement map file loading
+        use std::fs::File;
+        use std::io::{BufRead, BufReader};
+        
+        let file = File::open(path_to_map_file)?;
+        let reader = BufReader::new(file);
+        
+        // Initialize static map storage
+        // TODO: Use a proper static map like lazy_static or once_cell
+        
+        for line in reader.lines() {
+            let line = line?;
+            let parts: Vec<&str> = line.split(',').collect();
+            if parts.len() >= 2 {
+                if let (Ok(id), name) = (u32::from_str_radix(parts[0], 16), parts[1]) {
+                    // Store mapping
+                    // TODO: Store in static map
+                }
+            }
+        }
+        
         Ok(())
     }
 
     pub fn node_name_to_id(fullname: &str) -> u32 {
-        // TODO: Implement name to ID lookup
-        0
+        // TODO: Look up in static map
+        // For now return a dummy value
+        0x123456
     }
 
     pub fn node_id_to_name(id: u32) -> String {
-        // TODO: Implement ID to name lookup
-        String::new()
+        // TODO: Look up in static map
+        // For now return a dummy value
+        format!("node_{:06X}", id)
     }
 }
