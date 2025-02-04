@@ -1,46 +1,40 @@
 use std::io::{self, Write};
 use wing::{WingConsole, NodeDefinition};
 
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: {} <map_file> [node_id]", args[0]);
-        return;
-    }
-
-    if let Err(e) = NodeDefinition::init_map(&args[1]) {
-        eprintln!("Failed to load map file: {}", e);
-        return;
-    }
-
-    if args.len() > 2 {
-        if let Ok(id) = u32::from_str_radix(&args[2], 16) {
-            print_node(id);
-        }
-    } else {
-        // Print root node
-        print_node(0);
-    }
-}
-
-fn print_node(id: u32) {
+fn main() -> wing::Result<()> {
     // Discover Wing devices
-    let devices = WingConsole::scan(true);
+    let devices = WingConsole::scan(true)?;
     if devices.is_empty() {
         eprintln!("No Wing devices found!");
-        return;
+        return Ok(());
     }
 
-    println!("Found Wing at {}", devices[0].ip);
-    println!("Connecting...");
+    // Print discovered devices
+    println!("Found {} Wing device(s):", devices.len());
+    for (i, dev) in devices.iter().enumerate() {
+        println!("{}. {} at {} (Model: {}, Firmware: {})", 
+            i + 1, dev.name, dev.ip, dev.model, dev.firmware);
+    }
 
-    let mut console = match WingConsole::connect(&devices[0].ip) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Failed to connect: {}", e);
-            return;
+    // Let user choose if multiple devices found
+    let device = if devices.len() > 1 {
+        print!("Select device (1-{}): ", devices.len());
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let selection = input.trim().parse::<usize>().unwrap_or(0);
+        if selection < 1 || selection > devices.len() {
+            eprintln!("Invalid selection!");
+            return Ok(());
         }
+        &devices[selection - 1]
+    } else {
+        &devices[0]
     };
+
+    println!("Connecting to {} at {}...", device.name, device.ip);
+    let mut console = WingConsole::connect(&device.ip)?;
+    println!("Connected!");
 
     let mut stdout = io::stdout();
     
@@ -102,14 +96,9 @@ fn print_node(id: u32) {
         stdout.flush().unwrap();
     }));
 
-    console.request_node_definition(id);
+    console.request_node_definition(0)?;
     
-    // Read responses for a short time
-    for _ in 0..10 {
-        if let Err(e) = console.read() {
-            eprintln!("Error reading: {}", e);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
+    loop {
+        console.read()?;
     }
 }
