@@ -341,18 +341,56 @@ impl WingConsole {
     }
 
     pub fn request_node_definition(&mut self, id: i32) -> Result<()> {
-        // Format and send node definition request
-        let mut buf = [0u8; 8];
-        self.format_id(id, &mut buf, b'D', b'\n')?;
-        self.stream.write_all(&buf)?;
+        let mut buf = [0u8; 16];
+        let len = if id == 0 {
+            buf[0] = 0xda;
+            buf[1] = 0xdd;
+            2
+        } else {
+            buf[0] = 0xd7;
+            buf[1] = (id >> 24) as u8;
+            buf[2] = ((id >> 16) & 0xff) as u8;
+            buf[3] = ((id >> 8) & 0xff) as u8;
+            buf[4] = (id & 0xff) as u8;
+            buf[5] = 0xdd;
+            6
+        };
+        self.stream.write_all(&buf[..len])?;
+        Ok(())
+    }
+
+    pub fn scan_children(&mut self, id: i32) -> Result<()> {
+        // Request definition for this node
+        self.request_node_definition(id)?;
+        
+        // Request data for this node
+        self.request_node_data(id)?;
+        
+        // Request definitions for all child nodes
+        for i in 1..=64 {  // Assuming max 64 children per node
+            let child_id = (id << 8) | i;
+            self.request_node_definition(child_id)?;
+        }
+        
         Ok(())
     }
 
     pub fn request_node_data(&mut self, id: i32) -> Result<()> {
-        // Format and send node data request
-        let mut buf = [0u8; 8];
-        self.format_id(id, &mut buf, b'R', b'\n')?;
-        self.stream.write_all(&buf)?;
+        let mut buf = [0u8; 16];
+        let len = if id == 0 {
+            buf[0] = 0xda;
+            buf[1] = 0xdc;
+            2
+        } else {
+            buf[0] = 0xd7;
+            buf[1] = (id >> 24) as u8;
+            buf[2] = ((id >> 16) & 0xff) as u8;
+            buf[3] = ((id >> 8) & 0xff) as u8;
+            buf[4] = (id & 0xff) as u8;
+            buf[5] = 0xdc;
+            6
+        };
+        self.stream.write_all(&buf[..len])?;
         Ok(())
     }
 
