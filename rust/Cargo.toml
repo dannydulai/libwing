@@ -11,6 +11,7 @@ crate-type = ["rlib", "cdylib"]
 libc = "0.2"
 thiserror = "1.0"
 socket2 = "0.5"
+lazy_static = "1.4"
 
 rust/src/lib.rs
 ```rust

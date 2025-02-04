@@ -134,6 +134,14 @@ impl NodeDefinition {
         self.read_only
     }
 
+    use std::collections::HashMap;
+    use std::sync::RwLock;
+
+    lazy_static::lazy_static! {
+        static ref NAME_TO_ID: RwLock<HashMap<String, u32>> = RwLock::new(HashMap::new());
+        static ref ID_TO_NAME: RwLock<HashMap<u32, String>> = RwLock::new(HashMap::new());
+    }
+
     pub fn init_map(path_to_map_file: &str) -> crate::Result<()> {
         use std::fs::File;
         use std::io::{BufRead, BufReader};
@@ -141,16 +149,20 @@ impl NodeDefinition {
         let file = File::open(path_to_map_file)?;
         let reader = BufReader::new(file);
         
-        // Initialize static map storage
-        // TODO: Use a proper static map like lazy_static or once_cell
+        let mut name_to_id = NAME_TO_ID.write().unwrap();
+        let mut id_to_name = ID_TO_NAME.write().unwrap();
+        
+        name_to_id.clear();
+        id_to_name.clear();
         
         for line in reader.lines() {
             let line = line?;
             let parts: Vec<&str> = line.split(',').collect();
             if parts.len() >= 2 {
-                if let (Ok(id), name) = (u32::from_str_radix(parts[0], 16), parts[1]) {
-                    // Store mapping
-                    // TODO: Store in static map
+                if let Ok(id) = u32::from_str_radix(parts[0], 16) {
+                    let name = parts[1].to_string();
+                    name_to_id.insert(name.clone(), id);
+                    id_to_name.insert(id, name);
                 }
             }
         }
@@ -159,14 +171,18 @@ impl NodeDefinition {
     }
 
     pub fn node_name_to_id(fullname: &str) -> u32 {
-        // TODO: Look up in static map
-        // For now return a dummy value
-        0x123456
+        NAME_TO_ID.read()
+            .unwrap()
+            .get(fullname)
+            .copied()
+            .unwrap_or(0)
     }
 
     pub fn node_id_to_name(id: u32) -> String {
-        // TODO: Look up in static map
-        // For now return a dummy value
-        format!("node_{:06X}", id)
+        ID_TO_NAME.read()
+            .unwrap()
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| format!("node_{:06X}", id))
     }
 }
