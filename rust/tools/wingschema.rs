@@ -2,6 +2,7 @@ use std::io::{self, Write};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
+use std::sync::Mutex;
 use wing::{WingConsole, NodeDefinition, NodeType};
 
 fn main() -> wing::Result<()> {
@@ -36,7 +37,7 @@ fn main() -> wing::Result<()> {
     };
 
     println!("Connecting to {} at {}...", device.name, device.ip);
-    let mut console = WingConsole::connect(&device.ip)?;
+    let console = Arc::new(Mutex::new(WingConsole::connect(&device.ip)?));
     println!("Connected!");
 
     // Track parent-child relationships and node definitions
@@ -44,6 +45,7 @@ fn main() -> wing::Result<()> {
     let mut node_id_to_def: HashMap<i32, NodeDefinition> = HashMap::new();
     let pending_requests = Arc::new(AtomicI32::new(0));
     let pending_requests2 = pending_requests.clone();
+    let console2 = console.clone();
 
     let stdout = io::stdout();
     let stdout = std::sync::Mutex::new(stdout);
@@ -72,7 +74,7 @@ fn main() -> wing::Result<()> {
             // Request definitions for potential child nodes
             for i in 1..=64 {
                 let child_id = (node_id << 8) | i;
-                console.request_node_definition(child_id).unwrap();
+                console2.lock().unwrap().request_node_definition(child_id).unwrap();
                 pending_requests2.fetch_add(1, Ordering::SeqCst);
             }
         }
@@ -138,12 +140,12 @@ fn main() -> wing::Result<()> {
     }));
 
     // Start with root node
-    console.request_node_definition(0)?;
+    console.lock().unwrap().request_node_definition(0)?;
     pending_requests.fetch_add(1, Ordering::SeqCst);
     
     // Process responses until we've handled all requests
     while pending_requests.load(Ordering::SeqCst) > 0 {
-        console.read()?;
+        console.lock().unwrap().read()?;
     }
 
     println!("\nSchema retrieval complete!");
