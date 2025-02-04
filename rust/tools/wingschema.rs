@@ -1,5 +1,7 @@
 use std::io::{self, Write};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::Arc;
 use wing::{WingConsole, NodeDefinition, NodeType};
 
 fn main() -> wing::Result<()> {
@@ -40,7 +42,8 @@ fn main() -> wing::Result<()> {
     // Track parent-child relationships and node definitions
     let mut node_parent_to_children: HashMap<i32, Vec<i32>> = HashMap::new();
     let mut node_id_to_def: HashMap<i32, NodeDefinition> = HashMap::new();
-    let mut pending_requests = 0;
+    let pending_requests = Arc::new(AtomicI32::new(0));
+    let pending_requests2 = pending_requests.clone();
 
     let stdout = io::stdout();
     let stdout = std::sync::Mutex::new(stdout);
@@ -70,7 +73,7 @@ fn main() -> wing::Result<()> {
             for i in 1..=64 {
                 let child_id = (node_id << 8) | i;
                 console.request_node_definition(child_id).unwrap();
-                pending_requests += 1;
+                pending_requests2.fetch_add(1, Ordering::SeqCst);
             }
         }
 
@@ -131,15 +134,15 @@ fn main() -> wing::Result<()> {
         writeln!(stdout, "{}", serde_json::to_string(&json).unwrap()).unwrap();
         stdout.flush().unwrap();
 
-        pending_requests -= 1;
+        pending_requests2.fetch_sub(1, Ordering::SeqCst);
     }));
 
     // Start with root node
     console.request_node_definition(0)?;
-    pending_requests += 1;
+    pending_requests.fetch_add(1, Ordering::SeqCst);
     
     // Process responses until we've handled all requests
-    while pending_requests > 0 {
+    while pending_requests.load(Ordering::SeqCst) > 0 {
         console.read()?;
     }
 
