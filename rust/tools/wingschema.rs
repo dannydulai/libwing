@@ -102,7 +102,12 @@ fn main() -> wing::Result<()> {
     let mut node_id_to_def: HashMap<i32, NodeDefinition> = HashMap::new();
     let mut pending_requests = 0;
 
+    let stdout = io::stdout();
+    let stdout = std::sync::Mutex::new(stdout);
+    let stdout1 = std::sync::Arc::new(stdout);
+
     console.on_node_definition = Some(Box::new(move |def: NodeDefinition| {
+        let mut stdout = stdout1.lock().unwrap();
         // Store the node definition
         let node_id = def.id;
         let parent_id = def.parent_id;
@@ -199,4 +204,6 @@ fn main() -> wing::Result<()> {
     }
 
     println!("\nSchema retrieval complete!");
+
+    Ok(())
 }
