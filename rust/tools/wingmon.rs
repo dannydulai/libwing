@@ -36,9 +36,13 @@ fn main() -> wing::Result<()> {
     let mut console = WingConsole::connect(&device.ip)?;
     println!("Connected!");
     
-    let mut stdout = io::stdout();
+    let stdout = io::stdout();
+    let stdout = std::sync::Mutex::new(stdout);
+    let stdout1 = std::sync::Arc::new(stdout);
+    let stdout2 = stdout1.clone();
     
     console.on_node_definition = Some(Box::new(move |def: NodeDefinition| {
+        let mut stdout = stdout1.lock().unwrap();
         writeln!(stdout, "Node Definition:").unwrap();
         writeln!(stdout, "  ID: {:06X}", def.id).unwrap();
         writeln!(stdout, "  Name: {}", def.name).unwrap();
@@ -48,6 +52,7 @@ fn main() -> wing::Result<()> {
     }));
     
     console.on_node_data = Some(Box::new(move |id: u32, data: NodeData| {
+        let mut stdout = stdout2.lock().unwrap();
         write!(stdout, "Node {:06X} = ", id).unwrap();
         if data.has_string() {
             writeln!(stdout, "{}", data.get_string()).unwrap();
