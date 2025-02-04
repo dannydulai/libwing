@@ -24,8 +24,17 @@ fn main() {
 }
 
 fn print_node(id: u32) {
-    let ip = "192.168.1.1"; // Default IP
-    let mut console = match WingConsole::connect(ip) {
+    // Discover Wing devices
+    let devices = WingConsole::scan(true);
+    if devices.is_empty() {
+        eprintln!("No Wing devices found!");
+        return;
+    }
+
+    println!("Found Wing at {}", devices[0].ip);
+    println!("Connecting...");
+
+    let mut console = match WingConsole::connect(&devices[0].ip) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Failed to connect: {}", e);
