@@ -107,11 +107,19 @@ impl WingConsole {
                             },
                             1 => {
                                 // Handle node definition data
-                                // TODO: Accumulate definition data and call callback
+                                if let Some(def) = self.accumulate_node_definition(value)? {
+                                    if let Some(ref mut cb) = self.on_node_definition {
+                                        cb(def);
+                                    }
+                                }
                             },
                             2 => {
                                 // Handle node data
-                                // TODO: Accumulate node data and call callback
+                                if let Some((id, data)) = self.accumulate_node_data(value)? {
+                                    if let Some(ref mut cb) = self.on_node_data {
+                                        cb(id, data);
+                                    }
+                                }
                             },
                             _ => {}
                         }
@@ -165,6 +173,20 @@ impl WingConsole {
         Ok(())
     }
 
+    fn accumulate_node_definition(&mut self, value: u8) -> Result<Option<NodeDefinition>> {
+        // TODO: Implement node definition accumulation from protocol data
+        // This should parse the incoming bytes and construct a NodeDefinition
+        // when complete
+        Ok(None)
+    }
+
+    fn accumulate_node_data(&mut self, value: u8) -> Result<Option<(u32, NodeData)>> {
+        // TODO: Implement node data accumulation from protocol data
+        // This should parse the incoming bytes and construct a NodeData
+        // when complete
+        Ok(None)
+    }
+
     fn format_id(&self, id: u32, buf: &mut [u8], prefix: u8, suffix: u8) -> Result<()> {
         buf[0] = prefix;
         // Format ID as 6 hex digits
@@ -181,17 +203,33 @@ impl WingConsole {
     }
 
     pub fn set_string(&mut self, id: u32, value: &str) -> Result<()> {
-        // Implement string setting
+        let mut buf = Vec::with_capacity(8 + value.len() + 1);
+        self.format_id(id, &mut buf[..8], b'S', b' ')?;
+        buf.extend_from_slice(value.as_bytes());
+        buf.push(b'\n');
+        self.stream.write_all(&buf)?;
         Ok(())
     }
 
     pub fn set_float(&mut self, id: u32, value: f32) -> Result<()> {
-        // Implement float setting
+        let mut buf = [0u8; 32];
+        self.format_id(id, &mut buf[..8], b'F', b' ')?;
+        let value_str = format!("{}", value);
+        let value_bytes = value_str.as_bytes();
+        buf[8..8+value_bytes.len()].copy_from_slice(value_bytes);
+        buf[8+value_bytes.len()] = b'\n';
+        self.stream.write_all(&buf[..8+value_bytes.len()+1])?;
         Ok(())
     }
 
     pub fn set_int(&mut self, id: u32, value: i32) -> Result<()> {
-        // Implement int setting
+        let mut buf = [0u8; 32];
+        self.format_id(id, &mut buf[..8], b'I', b' ')?;
+        let value_str = format!("{}", value);
+        let value_bytes = value_str.as_bytes();
+        buf[8..8+value_bytes.len()].copy_from_slice(value_bytes);
+        buf[8+value_bytes.len()] = b'\n';
+        self.stream.write_all(&buf[..8+value_bytes.len()+1])?;
         Ok(())
     }
 }
