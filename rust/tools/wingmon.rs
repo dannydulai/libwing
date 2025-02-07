@@ -1,9 +1,10 @@
 use std::io::{self, Write};
-use wing::{WingConsole, NodeDefinition, NodeData};
+use wing::{WingConsole, Response, NodeDefinition};
+use std::result::Result;
 
-fn main() -> wing::Result<()> {
+fn main() -> Result<(),wing::Error> {
     // Discover Wing devices
-    let devices = WingConsole::scan(false);
+    let devices = WingConsole::scan(true)?;
     if devices.is_empty() {
         eprintln!("No Wing devices found!");
         return Ok(());
@@ -36,36 +37,12 @@ fn main() -> wing::Result<()> {
     let mut console = WingConsole::connect(&device.ip)?;
     println!("Connected!");
     
-    let stdout = io::stdout();
-    let stdout = std::sync::Mutex::new(stdout);
-    let stdout1 = std::sync::Arc::new(stdout);
-    let stdout2 = stdout1.clone();
-    
-    console.on_node_definition = Some(Box::new(move |def: NodeDefinition| {
-        let mut stdout = stdout1.lock().unwrap();
-        writeln!(stdout, "Node Definition:").unwrap();
-        writeln!(stdout, "  ID: {:06X}", def.id).unwrap();
-        writeln!(stdout, "  Name: {}", def.name).unwrap();
-        writeln!(stdout, "  Type: {:?}", def.node_type).unwrap();
-        writeln!(stdout, "  Unit: {:?}", def.unit).unwrap();
-        stdout.flush().unwrap();
-    }));
-    
-    console.on_node_data = Some(Box::new(move |id: u32, data: NodeData| {
-        let mut stdout = stdout2.lock().unwrap();
-        write!(stdout, "Node {:06X} = ", id).unwrap();
-        if data.has_string() {
-            writeln!(stdout, "{}", data.get_string()).unwrap();
-        } else if data.has_float() {
-            writeln!(stdout, "{}", data.get_float()).unwrap();
-        } else if data.has_int() {
-            writeln!(stdout, "{}", data.get_int()).unwrap();
-        }
-        stdout.flush().unwrap();
-    }));
-
     // Main event loop
     loop {
-        console.read()?;
+        if let Response::NodeData(id, data) =  console.read()? {
+            println!("Node {} ({:06X}) = {}", 
+                NodeDefinition::node_id_to_name(id).unwrap_or("Unknown"),
+                id, data.get_string());
+        }
     }
 }

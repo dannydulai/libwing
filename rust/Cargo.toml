@@ -1,18 +1,23 @@
 [package]
-name = "wing-rs"
+name = "libwing"
 version = "0.1.0"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/dannydulai/libwing"
 edition = "2021"
+description = "A library for communicationg with the Behringer Wing Digital Mixer"
+documentation = "https://docs.rs/libwing"
 
 [lib]
-name = "wing"
+name = "libwing"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 libc = "0.2"
-thiserror = "1.0"
 socket2 = "0.5"
 lazy_static = "1.4"
-serde_json = "1.0"
+jzon = "0.12.5"
+thiserror = "2.0.11"
 
 [[bin]]
 name = "wingmon"

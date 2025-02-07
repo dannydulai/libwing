@@ -1,303 +1,150 @@
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int, c_float, c_void};
-use std::slice;
+use std::os::raw::{c_char, c_int, c_float};
 use std::ptr;
-use crate::{WingConsole, NodeDefinition, NodeData, NodeType, NodeUnit};
+use crate::{WingConsole, NodeDefinition, NodeType, NodeUnit, Response};
 
 // Opaque type wrappers
 #[repr(C)]
-pub struct WingDiscoverHandle {
+pub struct WingDiscoveryInfoHandle {
     info: Vec<crate::DiscoveryInfo>
 }
 
 #[repr(C)]
 pub struct WingConsoleHandle {
     console: WingConsole,
-    request_end_cb: Option<extern "C" fn(*mut c_void)>,
-    request_end_data: *mut c_void,
-    node_def_cb: Option<extern "C" fn(*mut NodeDefinitionHandle, *mut c_void)>,
-    node_def_data: *mut c_void,
-    node_data_cb: Option<extern "C" fn(u32, *mut NodeDataHandle, *mut c_void)>,
-    node_data_data: *mut c_void,
 }
 
 #[repr(C)]
-pub struct NodeDefinitionHandle {
-    def: NodeDefinition
+pub struct ResponseHandle {
+    response: Response
 }
 
 #[repr(C)]
-pub struct NodeDataHandle {
-    data: NodeData
+#[derive(Copy, Clone, PartialEq)]
+pub enum ResponseType {
+    End = 0,
+    NodeDefinition = 1,
+    NodeData = 2,
 }
 
 #[no_mangle]
-pub extern "C" fn wing_discover_scan(stop_on_first: c_int) -> *mut WingDiscoverHandle {
-    let results = WingConsole::scan(stop_on_first != 0);
-    let handle = Box::new(WingDiscoverHandle { info: results });
-    Box::into_raw(handle)
-}
-
-#[no_mangle]
-pub extern "C" fn wing_discover_destroy(handle: *mut WingDiscoverHandle) {
-    if !handle.is_null() {
-        unsafe {
-            drop(Box::from_raw(handle));
-        }
+pub extern "C" fn wing_string_destroy(handle: *const c_char) {
+    unsafe {
+        drop(CString::from_raw(handle as *mut c_char));
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_discover_count(handle: *const WingDiscoverHandle) -> c_int {
+pub extern "C" fn wing_discover_scan(stop_on_first: c_int) -> *mut WingDiscoveryInfoHandle {
+    let results = WingConsole::scan(stop_on_first != 0);
+    if let Ok(results) = results {
+        Box::into_raw(Box::new(WingDiscoveryInfoHandle { info: results }))
+    } else {
+        ptr::null_mut()
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_discover_destroy(handle: *mut WingDiscoveryInfoHandle) {
+    unsafe {
+        drop(Box::from_raw(handle));
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_discover_count(handle: *const WingDiscoveryInfoHandle) -> c_int {
     unsafe {
         (*handle).info.len() as c_int
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_discover_get_ip(handle: *const WingDiscoverHandle, index: c_int) -> *const c_char {
+pub extern "C" fn wing_discover_get_ip(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
         let info = &(*handle).info[index as usize];
-        CString::new(info.ip.clone()).unwrap().into_raw()
+        CString::new(&info.ip[..]).unwrap().into_raw()
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_discover_get_name(handle: *const WingDiscoverHandle, index: c_int) -> *const c_char {
+pub extern "C" fn wing_discover_get_name(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
         let info = &(*handle).info[index as usize];
-        CString::new(info.name.clone()).unwrap().into_raw()
+        CString::new(&info.name[..]).unwrap().into_raw()
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_discover_get_model(handle: *const WingDiscoverHandle, index: c_int) -> *const c_char {
+pub extern "C" fn wing_discover_get_model(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
         let info = &(*handle).info[index as usize];
-        CString::new(info.model.clone()).unwrap().into_raw()
+        CString::new(&info.model[..]).unwrap().into_raw()
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_discover_get_serial(handle: *const WingDiscoverHandle, index: c_int) -> *const c_char {
+pub extern "C" fn wing_discover_get_serial(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
         let info = &(*handle).info[index as usize];
-        CString::new(info.serial.clone()).unwrap().into_raw()
+        CString::new(&info.serial[..]).unwrap().into_raw()
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_discover_get_firmware(handle: *const WingDiscoverHandle, index: c_int) -> *const c_char {
+pub extern "C" fn wing_discover_get_firmware(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
         let info = &(*handle).info[index as usize];
-        CString::new(info.firmware.clone()).unwrap().into_raw()
+        CString::new(&info.firmware[..]).unwrap().into_raw()
     }
 }
 
 #[no_mangle]
 pub extern "C" fn wing_console_connect(ip: *const c_char) -> *mut WingConsoleHandle {
-    let ip_str = unsafe { CStr::from_ptr(ip).to_string_lossy().into_owned() };
-    match WingConsole::connect(&ip_str) {
-        Ok(console) => {
-            let handle = Box::new(WingConsoleHandle {
-                console,
-                request_end_cb: None,
-                request_end_data: ptr::null_mut(),
-                node_def_cb: None,
-                node_def_data: ptr::null_mut(),
-                node_data_cb: None,
-                node_data_data: ptr::null_mut(),
-            });
-            Box::into_raw(handle)
+    let ip = unsafe { CStr::from_ptr(ip).to_str() };
+    if let Ok(ip) = ip {
+        match WingConsole::connect(ip) {
+            Ok(console) => Box::into_raw(Box::new(WingConsoleHandle { console })),
+            Err(_) => ptr::null_mut()
         }
-        Err(_) => ptr::null_mut()
+    } else {
+        ptr::null_mut()
     }
 }
 
 #[no_mangle]
 pub extern "C" fn wing_console_destroy(handle: *mut WingConsoleHandle) {
-    if !handle.is_null() {
-        unsafe {
-            drop(Box::from_raw(handle));
+    unsafe {
+        drop(Box::from_raw(handle));
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_console_read(handle: *mut WingConsoleHandle) -> *mut ResponseHandle {
+    unsafe {
+        if let Ok(response) = (*handle).console.read() {
+            Box::into_raw(Box::new(ResponseHandle { response }))
+        } else {
+            ptr::null_mut()
         }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_console_set_request_end_callback(
-    handle: *mut WingConsoleHandle,
-    callback: Option<extern "C" fn(*mut c_void)>,
-    user_data: *mut c_void,
-) {
+pub extern "C" fn wing_response_destroy(handle: *mut ResponseHandle) {
     unsafe {
-        let console = &mut (*handle);
-        console.request_end_cb = callback;
-        console.request_end_data = user_data;
+        drop(Box::from_raw(handle));
     }
 }
 
+
 #[no_mangle]
-pub extern "C" fn wing_console_set_node_definition_callback(
-    handle: *mut WingConsoleHandle,
-    callback: Option<extern "C" fn(*mut NodeDefinitionHandle, *mut c_void)>,
-    user_data: *mut c_void,
-) {
+pub extern "C" fn wing_console_set_string(handle: *mut WingConsoleHandle, id: i32, value: *const c_char) -> c_int {
     unsafe {
-        let console = &mut (*handle);
-        console.node_def_cb = callback;
-        console.node_def_data = user_data;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_console_set_node_data_callback(
-    handle: *mut WingConsoleHandle,
-    callback: Option<extern "C" fn(u32, *mut NodeDataHandle, *mut c_void)>,
-    user_data: *mut c_void,
-) {
-    unsafe {
-        let console = &mut (*handle);
-        console.node_data_cb = callback;
-        console.node_data_data = user_data;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_console_read(handle: *mut WingConsoleHandle) {
-    unsafe {
-        (*handle).console.read().unwrap_or(());
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_console_set_string(
-    handle: *mut WingConsoleHandle,
-    id: u32,
-    value: *const c_char,
-) {
-    unsafe {
-        if let Ok(s) = CStr::from_ptr(value).to_str() {
-            let _ = (*handle).console.set_string(id, s);
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_console_set_float(
-    handle: *mut WingConsoleHandle,
-    id: u32,
-    value: c_float,
-) {
-    unsafe {
-        let _ = (*handle).console.set_float(id, value);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_console_set_int(
-    handle: *mut WingConsoleHandle,
-    id: u32,
-    value: c_int,
-) {
-    unsafe {
-        let _ = (*handle).console.set_int(id, value as i32);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_console_request_node_definition(
-    handle: *mut WingConsoleHandle,
-    id: u32,
-) {
-    unsafe {
-        let _ = (*handle).console.request_node_definition(id);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_console_request_node_data(
-    handle: *mut WingConsoleHandle,
-    id: u32,
-) {
-    unsafe {
-        let _ = (*handle).console.request_node_data(id);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_destroy(handle: *mut NodeDefinitionHandle) {
-    if !handle.is_null() {
-        unsafe {
-            drop(Box::from_raw(handle));
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_data_destroy(handle: *mut NodeDataHandle) {
-    if !handle.is_null() {
-        unsafe {
-            drop(Box::from_raw(handle));
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_data_get_string(
-    handle: *const NodeDataHandle,
-    buffer: *mut c_char,
-    buffer_size: usize,
-) {
-    unsafe {
-        let s = (*handle).data.get_string();
-        let c_str = CString::new(s).unwrap_or_default();
-        libc::strncpy(buffer, c_str.as_ptr(), buffer_size - 1);
-        *buffer.add(buffer_size - 1) = 0;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_data_get_float(handle: *const NodeDataHandle) -> c_float {
-    unsafe {
-        (*handle).data.get_float()
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_data_get_int(handle: *const NodeDataHandle) -> c_int {
-    unsafe {
-        (*handle).data.get_int()
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_data_has_string(handle: *const NodeDataHandle) -> c_int {
-    unsafe {
-        (*handle).data.has_string() as c_int
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_data_has_float(handle: *const NodeDataHandle) -> c_int {
-    unsafe {
-        (*handle).data.has_float() as c_int
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_data_has_int(handle: *const NodeDataHandle) -> c_int {
-    unsafe {
-        (*handle).data.has_int() as c_int
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_init_map(path: *const c_char) -> c_int {
-    unsafe {
-        if let Ok(path_str) = CStr::from_ptr(path).to_str() {
-            match NodeDefinition::init_map(path_str) {
-                Ok(_) => 0,
-                Err(_) => -1,
+        if let Ok(value) = CStr::from_ptr(value).to_str() {
+            if (*handle).console.set_string(id, value).is_ok() {
+                0
+            } else {
+                -1
             }
         } else {
             -1
@@ -306,7 +153,127 @@ pub extern "C" fn wing_node_init_map(path: *const c_char) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_name_to_id(name: *const c_char) -> u32 {
+pub extern "C" fn wing_console_set_float(handle: *mut WingConsoleHandle, id: i32, value: c_float) -> c_int {
+    unsafe {
+        if (*handle).console.set_float(id, value).is_ok() {
+            0
+        } else {
+            -1
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_console_set_int(handle: *mut WingConsoleHandle, id: i32, value: c_int) -> c_int {
+    unsafe {
+        if (*handle).console.set_int(id, value).is_ok() {
+            0
+        } else {
+            -1
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_console_request_node_definition(handle: *mut WingConsoleHandle, id: i32) -> c_int {
+    unsafe {
+        if (*handle).console.request_node_definition(id).is_ok() {
+            0
+        } else {
+            -1
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_console_request_node_data(handle: *mut WingConsoleHandle, id: i32) -> c_int {
+    unsafe {
+        if (*handle).console.request_node_data(id).is_ok() {
+            0
+        } else {
+            -1
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_response_get_type(handle: *const ResponseHandle) -> ResponseType {
+    match unsafe { &(*handle).response } {
+        Response::RequestEnd => ResponseType::End,
+        Response::NodeDefinition(_) => ResponseType::NodeDefinition,
+        Response::NodeData(_, _) => ResponseType::NodeData,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_data_get_string(handle: *const ResponseHandle) -> *const c_char {
+    unsafe {
+        if let Response::NodeData(_, data) = &(*handle).response {
+            let s = data.get_string();
+            CString::new(&s[..]).unwrap().into_raw()
+        } else {
+            ptr::null()
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_data_get_float(handle: *const ResponseHandle) -> c_float {
+    unsafe {
+        if let Response::NodeData(_, data) = &(*handle).response {
+            data.get_float()
+        } else {
+            0.0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_data_get_int(handle: *const ResponseHandle) -> c_int {
+    unsafe {
+        if let Response::NodeData(_, data) = &(*handle).response {
+            data.get_int()
+        } else {
+            0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_data_has_string(handle: *const ResponseHandle) -> c_int {
+    unsafe {
+        if let Response::NodeData(_, data) = &(*handle).response {
+            if data.has_string() { 1 } else { 0 }
+        } else {
+            0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_data_has_float(handle: *const ResponseHandle) -> c_int {
+    unsafe {
+        if let Response::NodeData(_, data) = &(*handle).response {
+            if data.has_float() { 1 } else { 0 }
+        } else {
+            0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_data_has_int(handle: *const ResponseHandle) -> c_int {
+    unsafe {
+        if let Response::NodeData(_, data) = &(*handle).response {
+            if data.has_int() { 1 } else { 0 }
+        } else {
+            0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_name_to_id(name: *const c_char) -> i32 {
     unsafe {
         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
             NodeDefinition::node_name_to_id(name_str)
@@ -317,155 +284,293 @@ pub extern "C" fn wing_node_name_to_id(name: *const c_char) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_id_to_name(id: u32, buffer: *mut c_char, buffer_size: usize) {
-    unsafe {
-        let name = NodeDefinition::node_id_to_name(id);
-        let c_str = CString::new(name).unwrap_or_default();
-        libc::strncpy(buffer, c_str.as_ptr(), buffer_size - 1);
-        *buffer.add(buffer_size - 1) = 0;
+pub extern "C" fn wing_node_id_to_name(id: i32) -> *const c_char {
+    let name = NodeDefinition::node_id_to_name(id);
+    if let Some(name) = name {
+        CString::new(name).unwrap().into_raw()
+    } else {
+        ptr::null()
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_parent_id(def: *const NodeDefinitionHandle) -> u32 {
+pub extern "C" fn wing_node_definition_get_parent_id(def: *const ResponseHandle) -> i32 {
     unsafe {
-        (*def).def.parent_id
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_id(def: *const NodeDefinitionHandle) -> u32 {
-    unsafe {
-        (*def).def.id
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_index(def: *const NodeDefinitionHandle) -> u16 {
-    unsafe {
-        (*def).def.index
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_name(
-    def: *const NodeDefinitionHandle,
-    buffer: *mut c_char,
-    buffer_size: usize,
-) {
-    unsafe {
-        let c_str = CString::new((*def).def.name.clone()).unwrap_or_default();
-        libc::strncpy(buffer, c_str.as_ptr(), buffer_size - 1);
-        *buffer.add(buffer_size - 1) = 0;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_long_name(
-    def: *const NodeDefinitionHandle,
-    buffer: *mut c_char,
-    buffer_size: usize,
-) {
-    unsafe {
-        let c_str = CString::new((*def).def.long_name.clone()).unwrap_or_default();
-        libc::strncpy(buffer, c_str.as_ptr(), buffer_size - 1);
-        *buffer.add(buffer_size - 1) = 0;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_min_float(def: *const NodeDefinitionHandle) -> c_float {
-    unsafe {
-        (*def).def.min_float
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_max_float(def: *const NodeDefinitionHandle) -> c_float {
-    unsafe {
-        (*def).def.max_float
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_steps(def: *const NodeDefinitionHandle) -> u32 {
-    unsafe {
-        (*def).def.steps
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_min_int(def: *const NodeDefinitionHandle) -> i32 {
-    unsafe {
-        (*def).def.min_int
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_max_int(def: *const NodeDefinitionHandle) -> i32 {
-    unsafe {
-        (*def).def.max_int
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_max_string_len(def: *const NodeDefinitionHandle) -> u16 {
-    unsafe {
-        (*def).def.max_string_len
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_string_enum_count(def: *const NodeDefinitionHandle) -> usize {
-    unsafe {
-        (*def).def.string_enum.len()
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn wing_node_definition_get_string_enum_item(
-    def: *const NodeDefinitionHandle,
-    index: usize,
-    item_buffer: *mut c_char,
-    item_buffer_size: usize,
-    longitem_buffer: *mut c_char,
-    longitem_buffer_size: usize,
-) {
-    unsafe {
-        if let Some(item) = (*def).def.string_enum.get(index) {
-            let c_str = CString::new(item.item.clone()).unwrap_or_default();
-            libc::strncpy(item_buffer, c_str.as_ptr(), item_buffer_size - 1);
-            *item_buffer.add(item_buffer_size - 1) = 0;
-
-            let c_str = CString::new(item.longitem.clone()).unwrap_or_default();
-            libc::strncpy(longitem_buffer, c_str.as_ptr(), longitem_buffer_size - 1);
-            *longitem_buffer.add(longitem_buffer_size - 1) = 0;
+        if let Response::NodeDefinition(def) = &(*def).response {
+            def.parent_id
+        } else {
+            panic!("Invalid response type");
         }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_float_enum_count(def: *const NodeDefinitionHandle) -> usize {
+pub extern "C" fn wing_node_definition_get_id(def: *const ResponseHandle) -> i32 {
     unsafe {
-        (*def).def.float_enum.len()
+        if let Response::NodeDefinition(def) = &(*def).response {
+            def.id
+        } else {
+            panic!("Invalid response type");
+        }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_float_enum_item(
-    def: *const NodeDefinitionHandle,
-    index: usize,
-    item_value: *mut c_float,
-    longitem_buffer: *mut c_char,
-    longitem_buffer_size: usize,
-) {
+pub extern "C" fn wing_node_definition_get_index(def: *const ResponseHandle) -> u16 {
     unsafe {
-        if let Some(item) = (*def).def.float_enum.get(index) {
-            *item_value = item.item;
+        if let Response::NodeDefinition(def) = &(*def).response {
+            def.index
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
 
-            let c_str = CString::new(item.longitem.clone()).unwrap_or_default();
-            libc::strncpy(longitem_buffer, c_str.as_ptr(), longitem_buffer_size - 1);
-            *longitem_buffer.add(longitem_buffer_size - 1) = 0;
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_type(def: *const ResponseHandle) -> NodeType {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            def.node_type
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_unit(def: *const ResponseHandle) -> NodeUnit {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            def.unit
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_name(def: *const ResponseHandle) -> *const c_char {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            CString::new(&def.name[..]).unwrap().into_raw()
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_long_name(def: *const ResponseHandle) -> *const c_char {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            CString::new(&def.long_name[..]).unwrap().into_raw()
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_min_float(def: *const ResponseHandle, ret: *mut c_float) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(min_float) = def.min_float {
+                *ret = min_float;
+                1
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_max_float(def: *const ResponseHandle, ret: *mut c_float) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(max_float) = def.max_float {
+                *ret = max_float;
+                1
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_steps(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(steps) = def.steps {
+                *ret = steps;
+                1
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_min_int(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(min_int) = def.min_int {
+                *ret = min_int;
+                1
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_max_int(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(max_int) = def.max_int {
+                *ret = max_int;
+                1
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_max_string_len(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(max_string_len) = def.max_string_len {
+                *ret = max_string_len as i32;
+                1
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_string_enum_count(def: *const ResponseHandle) -> usize {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(string_enum) = &def.string_enum {
+                string_enum.len()
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_float_enum_count(def: *const ResponseHandle) -> usize {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(float_enum) = &def.float_enum {
+                float_enum.len()
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_float_enum_item(def: *const ResponseHandle, index: usize, ret: *mut c_float) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(item) = &def.float_enum {
+                if let Some(item) = item.get(index) {
+                    *ret = item.item;
+                    1
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_float_enum_long_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(item) = &def.float_enum {
+                if let Some(item) = item.get(index) {
+                    *ret = CString::new(&item.long_item[..]).unwrap().into_raw();
+                    1
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_string_enum_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(item) = &def.string_enum {
+                if let Some(item) = item.get(index) {
+                    *ret = CString::new(&item.item[..]).unwrap().into_raw();
+                    1
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_string_enum_long_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
+    unsafe {
+        if let Response::NodeDefinition(def) = &(*def).response {
+            if let Some(item) = &def.string_enum {
+                if let Some(item) = item.get(index) {
+                    *ret = CString::new(&item.long_item[..]).unwrap().into_raw();
+                    1
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        } else {
+            panic!("Invalid response type");
         }
     }
 }

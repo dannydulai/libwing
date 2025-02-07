@@ -1,5 +1,21 @@
+use std::collections::HashMap;
+
+use crate::propmap::NAME_TO_ID;
+
+lazy_static::lazy_static! {
+    static ref ID_TO_NAME: HashMap<i32, &'static str> = {
+        let mut id2name = HashMap::new();
+        if (id2name).is_empty() {
+            for (name, id) in NAME_TO_ID.iter() {
+                id2name.insert(*id, &name[..]);
+            }
+        }
+        id2name
+    };
+}
+
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum NodeType {
     Node = 0,
     LinearFloat = 1,
@@ -12,7 +28,7 @@ pub enum NodeType {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum NodeUnit {
     None = 0,
     Db = 1,
@@ -24,43 +40,45 @@ pub enum NodeUnit {
     Octaves = 7,
 }
 
-#[derive(Debug, Clone)]
 pub struct StringEnumItem {
     pub item: String,
-    pub longitem: String,
+    pub long_item: String,
 }
 
-#[derive(Debug, Clone)]
 pub struct FloatEnumItem {
     pub item: f32,
-    pub longitem: String,
+    pub long_item: String,
 }
 
-#[derive(Debug, Clone)]
 pub struct NodeDefinition {
-    pub id: u32,
-    pub parent_id: u32,
+    pub id: i32,
+    pub parent_id: i32,
     pub index: u16,
     pub name: String,
     pub long_name: String,
     pub node_type: NodeType,
     pub unit: NodeUnit,
     pub read_only: bool,
-    pub min_float: f32,
-    pub max_float: f32,
-    pub steps: u32,
-    pub min_int: i32,
-    pub max_int: i32,
-    pub max_string_len: u16,
-    pub string_enum: Vec<StringEnumItem>,
-    pub float_enum: Vec<FloatEnumItem>,
+    pub min_float: Option<f32>,
+    pub max_float: Option<f32>,
+    pub steps: Option<i32>,
+    pub min_int: Option<i32>,
+    pub max_int: Option<i32>,
+    pub max_string_len: Option<u16>,
+    pub string_enum: Option<Vec<StringEnumItem>>,
+    pub float_enum: Option<Vec<FloatEnumItem>>,
 }
 
-#[derive(Debug, Clone)]
 pub struct NodeData {
     string_value: Option<String>,
     float_value: Option<f32>,
     int_value: Option<i32>,
+}
+
+impl Default for NodeData {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NodeData {
@@ -88,16 +106,39 @@ impl NodeData {
         }
     }
 
-    pub fn with_int(i: i32) -> Self {
+    pub fn with_i32(i: i32) -> Self {
         Self {
             string_value: None,
             float_value: None,
             int_value: Some(i),
         }
     }
+    pub fn with_i16(i: i16) -> Self {
+        Self {
+            string_value: None,
+            float_value: None,
+            int_value: Some(i as i32),
+        }
+    }
+
+    pub fn with_i8(i: i8) -> Self {
+        Self {
+            string_value: None,
+            float_value: None,
+            int_value: Some(i as i32),
+        }
+    }
 
     pub fn get_string(&self) -> String {
-        self.string_value.clone().unwrap_or_default()
+        if self.has_string() {
+            self.string_value.clone().unwrap()
+        } else if self.has_float() {
+            self.float_value.unwrap().to_string()
+        } else if self.has_int() {
+            self.int_value.unwrap().to_string()
+        } else {
+            String::new()
+        }
     }
 
     pub fn get_float(&self) -> f32 {
@@ -134,55 +175,11 @@ impl NodeDefinition {
         self.read_only
     }
 
-    use std::collections::HashMap;
-    use std::sync::RwLock;
-
-    lazy_static::lazy_static! {
-        static ref NAME_TO_ID: RwLock<HashMap<String, u32>> = RwLock::new(HashMap::new());
-        static ref ID_TO_NAME: RwLock<HashMap<u32, String>> = RwLock::new(HashMap::new());
+    pub fn node_name_to_id(fullname: &str) -> i32 {
+        NAME_TO_ID.get(fullname).copied().unwrap_or(0)
     }
 
-    pub fn init_map(path_to_map_file: &str) -> crate::Result<()> {
-        use std::fs::File;
-        use std::io::{BufRead, BufReader};
-        
-        let file = File::open(path_to_map_file)?;
-        let reader = BufReader::new(file);
-        
-        let mut name_to_id = NAME_TO_ID.write().unwrap();
-        let mut id_to_name = ID_TO_NAME.write().unwrap();
-        
-        name_to_id.clear();
-        id_to_name.clear();
-        
-        for line in reader.lines() {
-            let line = line?;
-            let parts: Vec<&str> = line.split(',').collect();
-            if parts.len() >= 2 {
-                if let Ok(id) = u32::from_str_radix(parts[0], 16) {
-                    let name = parts[1].to_string();
-                    name_to_id.insert(name.clone(), id);
-                    id_to_name.insert(id, name);
-                }
-            }
-        }
-        
-        Ok(())
-    }
-
-    pub fn node_name_to_id(fullname: &str) -> u32 {
-        NAME_TO_ID.read()
-            .unwrap()
-            .get(fullname)
-            .copied()
-            .unwrap_or(0)
-    }
-
-    pub fn node_id_to_name(id: u32) -> String {
-        ID_TO_NAME.read()
-            .unwrap()
-            .get(&id)
-            .cloned()
-            .unwrap_or_else(|| format!("node_{:06X}", id))
+    pub fn node_id_to_name(id: i32) -> Option<&'static str> {
+        ID_TO_NAME.get(&id).map(|x| &**x)
     }
 }
