@@ -1,8 +1,8 @@
 use std::io::{self, Write};
-use wing::{WingConsole, Response, NodeDefinition};
+use libwing::{WingConsole, WingResponse, WingNodeDef};
 use std::result::Result;
 
-fn main() -> Result<(),wing::Error> {
+fn main() -> Result<(),libwing::Error> {
     // Discover Wing devices
     let devices = WingConsole::scan(true)?;
     if devices.is_empty() {
@@ -39,9 +39,9 @@ fn main() -> Result<(),wing::Error> {
     
     // Main event loop
     loop {
-        if let Response::NodeData(id, data) =  console.read()? {
+        if let WingResponse::NodeData(id, data) =  console.read()? {
             println!("Node {} ({:06X}) = {}", 
-                NodeDefinition::node_id_to_name(id).unwrap_or("Unknown"),
+                WingNodeDef::node_id_to_name(id).unwrap_or("Unknown"),
                 id, data.get_string());
         }
     }

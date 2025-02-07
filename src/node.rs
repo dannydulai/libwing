@@ -50,7 +50,7 @@ pub struct FloatEnumItem {
     pub long_item: String,
 }
 
-pub struct NodeDefinition {
+pub struct WingNodeDef {
     pub id: i32,
     pub parent_id: i32,
     pub index: u16,
@@ -69,19 +69,19 @@ pub struct NodeDefinition {
     pub float_enum: Option<Vec<FloatEnumItem>>,
 }
 
-pub struct NodeData {
+pub struct WingNodeData {
     string_value: Option<String>,
     float_value: Option<f32>,
     int_value: Option<i32>,
 }
 
-impl Default for NodeData {
+impl Default for WingNodeData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NodeData {
+impl WingNodeData {
     pub fn new() -> Self {
         Self {
             string_value: None,
@@ -162,7 +162,7 @@ impl NodeData {
     }
 }
 
-impl NodeDefinition {
+impl WingNodeDef {
     pub fn get_type(&self) -> NodeType {
         self.node_type
     }

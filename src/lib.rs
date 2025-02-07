@@ -10,7 +10,7 @@ mod ffi;
 mod propmap;
 
 pub use console::{WingConsole, DiscoveryInfo};
-pub use node::{NodeDefinition, NodeData, NodeType, NodeUnit};
+pub use node::{WingNodeDef, WingNodeData, NodeType, NodeUnit};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -24,9 +24,9 @@ pub enum Error {
     ConnectionError,
 }
 
-pub enum Response {
+pub enum WingResponse {
     RequestEnd,
-    NodeDefinition(NodeDefinition),
-    NodeData(i32, NodeData),
+    NodeDef(WingNodeDef),
+    NodeData(i32, WingNodeData),
 }
 

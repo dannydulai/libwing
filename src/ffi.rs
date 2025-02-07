@@ -1,7 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_float};
 use std::ptr;
-use crate::{WingConsole, NodeDefinition, NodeType, NodeUnit, Response};
+use crate::{WingConsole, WingNodeDef, NodeType, NodeUnit, WingResponse};
 
 // Opaque type wrappers
 #[repr(C)]
@@ -16,7 +16,7 @@ pub struct WingConsoleHandle {
 
 #[repr(C)]
 pub struct ResponseHandle {
-    response: Response
+    response: WingResponse
 }
 
 #[repr(C)]
@@ -199,16 +199,16 @@ pub extern "C" fn wing_console_request_node_data(handle: *mut WingConsoleHandle,
 #[no_mangle]
 pub extern "C" fn wing_response_get_type(handle: *const ResponseHandle) -> ResponseType {
     match unsafe { &(*handle).response } {
-        Response::RequestEnd => ResponseType::End,
-        Response::NodeDefinition(_) => ResponseType::NodeDefinition,
-        Response::NodeData(_, _) => ResponseType::NodeData,
+        WingResponse::RequestEnd => ResponseType::End,
+        WingResponse::NodeDef(_) => ResponseType::NodeDefinition,
+        WingResponse::NodeData(_, _) => ResponseType::NodeData,
     }
 }
 
 #[no_mangle]
 pub extern "C" fn wing_node_data_get_string(handle: *const ResponseHandle) -> *const c_char {
     unsafe {
-        if let Response::NodeData(_, data) = &(*handle).response {
+        if let WingResponse::NodeData(_, data) = &(*handle).response {
             let s = data.get_string();
             CString::new(&s[..]).unwrap().into_raw()
         } else {
@@ -220,7 +220,7 @@ pub extern "C" fn wing_node_data_get_string(handle: *const ResponseHandle) -> *c
 #[no_mangle]
 pub extern "C" fn wing_node_data_get_float(handle: *const ResponseHandle) -> c_float {
     unsafe {
-        if let Response::NodeData(_, data) = &(*handle).response {
+        if let WingResponse::NodeData(_, data) = &(*handle).response {
             data.get_float()
         } else {
             0.0
@@ -231,7 +231,7 @@ pub extern "C" fn wing_node_data_get_float(handle: *const ResponseHandle) -> c_f
 #[no_mangle]
 pub extern "C" fn wing_node_data_get_int(handle: *const ResponseHandle) -> c_int {
     unsafe {
-        if let Response::NodeData(_, data) = &(*handle).response {
+        if let WingResponse::NodeData(_, data) = &(*handle).response {
             data.get_int()
         } else {
             0
@@ -242,7 +242,7 @@ pub extern "C" fn wing_node_data_get_int(handle: *const ResponseHandle) -> c_int
 #[no_mangle]
 pub extern "C" fn wing_node_data_has_string(handle: *const ResponseHandle) -> c_int {
     unsafe {
-        if let Response::NodeData(_, data) = &(*handle).response {
+        if let WingResponse::NodeData(_, data) = &(*handle).response {
             if data.has_string() { 1 } else { 0 }
         } else {
             0
@@ -253,7 +253,7 @@ pub extern "C" fn wing_node_data_has_string(handle: *const ResponseHandle) -> c_
 #[no_mangle]
 pub extern "C" fn wing_node_data_has_float(handle: *const ResponseHandle) -> c_int {
     unsafe {
-        if let Response::NodeData(_, data) = &(*handle).response {
+        if let WingResponse::NodeData(_, data) = &(*handle).response {
             if data.has_float() { 1 } else { 0 }
         } else {
             0
@@ -264,7 +264,7 @@ pub extern "C" fn wing_node_data_has_float(handle: *const ResponseHandle) -> c_i
 #[no_mangle]
 pub extern "C" fn wing_node_data_has_int(handle: *const ResponseHandle) -> c_int {
     unsafe {
-        if let Response::NodeData(_, data) = &(*handle).response {
+        if let WingResponse::NodeData(_, data) = &(*handle).response {
             if data.has_int() { 1 } else { 0 }
         } else {
             0
@@ -276,7 +276,7 @@ pub extern "C" fn wing_node_data_has_int(handle: *const ResponseHandle) -> c_int
 pub extern "C" fn wing_node_name_to_id(name: *const c_char) -> i32 {
     unsafe {
         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
-            NodeDefinition::node_name_to_id(name_str)
+            WingNodeDef::node_name_to_id(name_str)
         } else {
             0
         }
@@ -285,7 +285,7 @@ pub extern "C" fn wing_node_name_to_id(name: *const c_char) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn wing_node_id_to_name(id: i32) -> *const c_char {
-    let name = NodeDefinition::node_id_to_name(id);
+    let name = WingNodeDef::node_id_to_name(id);
     if let Some(name) = name {
         CString::new(name).unwrap().into_raw()
     } else {
@@ -296,7 +296,7 @@ pub extern "C" fn wing_node_id_to_name(id: i32) -> *const c_char {
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_parent_id(def: *const ResponseHandle) -> i32 {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             def.parent_id
         } else {
             panic!("Invalid response type");
@@ -307,7 +307,7 @@ pub extern "C" fn wing_node_definition_get_parent_id(def: *const ResponseHandle)
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_id(def: *const ResponseHandle) -> i32 {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             def.id
         } else {
             panic!("Invalid response type");
@@ -318,7 +318,7 @@ pub extern "C" fn wing_node_definition_get_id(def: *const ResponseHandle) -> i32
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_index(def: *const ResponseHandle) -> u16 {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             def.index
         } else {
             panic!("Invalid response type");
@@ -329,7 +329,7 @@ pub extern "C" fn wing_node_definition_get_index(def: *const ResponseHandle) -> 
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_type(def: *const ResponseHandle) -> NodeType {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             def.node_type
         } else {
             panic!("Invalid response type");
@@ -340,7 +340,7 @@ pub extern "C" fn wing_node_definition_get_type(def: *const ResponseHandle) -> N
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_unit(def: *const ResponseHandle) -> NodeUnit {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             def.unit
         } else {
             panic!("Invalid response type");
@@ -351,7 +351,7 @@ pub extern "C" fn wing_node_definition_get_unit(def: *const ResponseHandle) -> N
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_name(def: *const ResponseHandle) -> *const c_char {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             CString::new(&def.name[..]).unwrap().into_raw()
         } else {
             panic!("Invalid response type");
@@ -362,7 +362,7 @@ pub extern "C" fn wing_node_definition_get_name(def: *const ResponseHandle) -> *
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_long_name(def: *const ResponseHandle) -> *const c_char {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             CString::new(&def.long_name[..]).unwrap().into_raw()
         } else {
             panic!("Invalid response type");
@@ -373,7 +373,7 @@ pub extern "C" fn wing_node_definition_get_long_name(def: *const ResponseHandle)
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_min_float(def: *const ResponseHandle, ret: *mut c_float) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(min_float) = def.min_float {
                 *ret = min_float;
                 1
@@ -389,7 +389,7 @@ pub extern "C" fn wing_node_definition_get_min_float(def: *const ResponseHandle,
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_max_float(def: *const ResponseHandle, ret: *mut c_float) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(max_float) = def.max_float {
                 *ret = max_float;
                 1
@@ -405,7 +405,7 @@ pub extern "C" fn wing_node_definition_get_max_float(def: *const ResponseHandle,
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_steps(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(steps) = def.steps {
                 *ret = steps;
                 1
@@ -421,7 +421,7 @@ pub extern "C" fn wing_node_definition_get_steps(def: *const ResponseHandle, ret
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_min_int(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(min_int) = def.min_int {
                 *ret = min_int;
                 1
@@ -437,7 +437,7 @@ pub extern "C" fn wing_node_definition_get_min_int(def: *const ResponseHandle, r
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_max_int(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(max_int) = def.max_int {
                 *ret = max_int;
                 1
@@ -453,7 +453,7 @@ pub extern "C" fn wing_node_definition_get_max_int(def: *const ResponseHandle, r
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_max_string_len(def: *const ResponseHandle, ret: *mut c_int) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(max_string_len) = def.max_string_len {
                 *ret = max_string_len as i32;
                 1
@@ -469,7 +469,7 @@ pub extern "C" fn wing_node_definition_get_max_string_len(def: *const ResponseHa
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_string_enum_count(def: *const ResponseHandle) -> usize {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(string_enum) = &def.string_enum {
                 string_enum.len()
             } else {
@@ -484,7 +484,7 @@ pub extern "C" fn wing_node_definition_get_string_enum_count(def: *const Respons
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_float_enum_count(def: *const ResponseHandle) -> usize {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(float_enum) = &def.float_enum {
                 float_enum.len()
             } else {
@@ -499,7 +499,7 @@ pub extern "C" fn wing_node_definition_get_float_enum_count(def: *const Response
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_float_enum_item(def: *const ResponseHandle, index: usize, ret: *mut c_float) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.float_enum {
                 if let Some(item) = item.get(index) {
                     *ret = item.item;
@@ -519,7 +519,7 @@ pub extern "C" fn wing_node_definition_get_float_enum_item(def: *const ResponseH
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_float_enum_long_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.float_enum {
                 if let Some(item) = item.get(index) {
                     *ret = CString::new(&item.long_item[..]).unwrap().into_raw();
@@ -539,7 +539,7 @@ pub extern "C" fn wing_node_definition_get_float_enum_long_item(def: *const Resp
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_string_enum_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.string_enum {
                 if let Some(item) = item.get(index) {
                     *ret = CString::new(&item.item[..]).unwrap().into_raw();
@@ -558,7 +558,7 @@ pub extern "C" fn wing_node_definition_get_string_enum_item(def: *const Response
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_string_enum_long_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
     unsafe {
-        if let Response::NodeDefinition(def) = &(*def).response {
+        if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.string_enum {
                 if let Some(item) = item.get(index) {
                     *ret = CString::new(&item.long_item[..]).unwrap().into_raw();

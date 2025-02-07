@@ -3,8 +3,8 @@ use std::io::{Read, Write};
 use std::time::Duration;
 
 use crate::{Result, Error};
-use crate::node::{NodeDefinition, NodeData, NodeType, NodeUnit, StringEnumItem, FloatEnumItem};
-use crate::Response;
+use crate::node::{WingNodeDef, WingNodeData, NodeType, NodeUnit, StringEnumItem, FloatEnumItem};
+use crate::WingResponse;
 
 const RX_BUFFER_SIZE: usize = 2048;
 
@@ -86,43 +86,43 @@ impl WingConsole {
         })
     }
 
-    pub fn read(&mut self) -> Result<Response> {
+    pub fn read(&mut self) -> Result<WingResponse> {
         loop {
             let (ch, cmd) = self.decode_next()?;
             //println!("Channel: {}, Command: {:X}", ch, cmd);
             if cmd <= 0x3f {
                 let v = cmd as i32;
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_i32(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_i32(v)));
             } else if cmd <= 0x7f {
                 let v = cmd - 0x40 + 1;
                 println!("REQUEST: NODE INDEX: {}", v);
             } else if cmd <= 0xbf {
                 let len = cmd - 0x80 + 1;
                 let v = self.read_string(ch, len as usize)?;
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_string(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd <= 0xcf {
                 let len = cmd - 0xc0 + 1;
                 let v = self.read_string(ch, len as usize)?;
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_string(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd == 0xd0 {
                 let v = String::new();
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_string(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd == 0xd1 {
                 let len = self.read_u8(ch)? + 1;
                 let v = self.read_string(ch, len as usize)?;
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_string(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd == 0xd2 {
                 let v = self.read_u16(ch)? + 1;
                 println!("REQUEST: NODE INDEX: {}", v);
             } else if cmd == 0xd3 {
                 let v = self.read_i16(ch)?;
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_i16(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_i16(v)));
             } else if cmd == 0xd4 {
                 let v = self.read_i32(ch)?;
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_i32(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_i32(v)));
             } else if cmd == 0xd5 || cmd == 0xd6 {
                 let v = self.read_f(ch)?;
-                return Ok(Response::NodeData(self.current_node_id, NodeData::with_float(v)));
+                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_float(v)));
             } else if cmd == 0xd7 {
                 self.current_node_id = self.read_i32(ch)?;
             } else if cmd == 0xd8 {
@@ -139,7 +139,7 @@ impl WingConsole {
             } else if cmd == 0xdd {
                 println!("REQUEST: CURRENT NODE DEFINITION");
             } else if cmd == 0xde {
-                return Ok(Response::RequestEnd);
+                return Ok(WingResponse::RequestEnd);
             } else if cmd == 0xdf {
                 let def_len = self.read_u16(ch)? as u32;
                 if def_len == 0 { let _ = self.read_u32(ch)?; }
@@ -237,7 +237,7 @@ impl WingConsole {
                     }
                 }
 
-                let def = NodeDefinition {
+                let def = WingNodeDef {
                     id,
                     parent_id,
                     index,
@@ -255,7 +255,7 @@ impl WingConsole {
                     string_enum,
                     float_enum
                 };
-                return Ok(Response::NodeDefinition(def));
+                return Ok(WingResponse::NodeDef(def));
             }
         }
     }

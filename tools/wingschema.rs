@@ -3,14 +3,14 @@ use std::io::{self, Write};
 use std::sync::RwLock;
 use std::result::Result;
 use std::collections::HashMap;
-use wing::{WingConsole, NodeDefinition, NodeType, NodeUnit, Response};
+use libwing::{WingConsole, WingResponse, WingNodeDef, NodeType, NodeUnit};
 
 #[macro_use]
 extern crate jzon;
 
 lazy_static::lazy_static! {
     static ref node_parent_to_children: RwLock<HashMap::<i32, Vec<i32>>> = RwLock::new(HashMap::<i32, Vec<i32>>::new());
-    static ref node_id_to_def: RwLock<HashMap::<i32, NodeDefinition>> = RwLock::new(HashMap::<i32, NodeDefinition>::new());
+    static ref node_id_to_def: RwLock<HashMap::<i32, WingNodeDef>> = RwLock::new(HashMap::<i32, WingNodeDef>::new());
 }
 
 fn req(node_id: i32, console: &mut WingConsole) -> i32 {
@@ -169,7 +169,7 @@ fn print_node(json_file: &mut File, rust_file: &mut Vec<u8>, node_id: i32, recur
     }
 }
 
-fn main() -> Result<(),wing::Error> {
+fn main() -> Result<(),libwing::Error> {
     // Discover Wing devices
     let devices = WingConsole::scan(true)?;
     if devices.is_empty() {
@@ -216,8 +216,8 @@ fn main() -> Result<(),wing::Error> {
     // Process responses until we've handled all requests
     loop { 
         match console.read()? {
-            Response::NodeData(_,_) => { }
-            Response::NodeDefinition(def) => {
+            WingResponse::NodeData(_,_) => { }
+            WingResponse::NodeDef(def) => {
                 // Store the node definition
                 let node_id = def.id;
                 let parent_id = def.parent_id;
@@ -235,7 +235,7 @@ fn main() -> Result<(),wing::Error> {
                 print!("\rReceived {} nodes", node_id_to_def.read().unwrap().len());
                 io::stdout().flush().unwrap();
             }
-            Response::RequestEnd => {
+            WingResponse::RequestEnd => {
                 end_requests += 1;
 //                println!("\nReceived request end, pending: {}, end: {}", pending_requests, end_requests);
                 if end_requests == pending_requests {
