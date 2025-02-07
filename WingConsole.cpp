@@ -320,17 +320,7 @@ WingConsole::read()
             unsigned char cmd;
             read8(cmd);
 
-            if (cmd == 0x00) {
-                if (_nodeData[currentNode].setInt(0)) {
-                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
-                }
-
-            } else if (cmd == 0x01) {
-                if (_nodeData[currentNode].setInt(1)) {
-                    if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
-                }
-
-            } else if (cmd >= 0x02 && cmd <= 0x3f) {
+            if (cmd <= 0x3f) {
                 if (_nodeData[currentNode].setInt((int)cmd)) {
                     if (onNodeData) onNodeData(currentNode, _nodeData[currentNode]);
                 }
