@@ -1,132 +1,72 @@
-# Introduction
+# Wing Rust Library
 
-This software includes a library for discovering and controlling the [Behringer
-Wing](https://www.behringer.com/behringer/wing) mixer over the local network.
-It also includes a series of utilities built using this library.
+This is the Rust implementation of the Wing library for discovering and controlling Behringer Wing mixers over the network.
 
-The library is available in multiple implementations:
-- C++ (original implementation)
-- Rust (with C API compatibility layer)
-- C wrapper (for both C++ and Rust implementations)
-- [dart](https://dart.dev) wrapper (for making Flutter apps, uses the C wrapper)
+## Features
 
-![Behringer Wing Family](wing.jpg)
+- Full implementation of the Wing Native protocol
+- Safe Rust wrapper around all functionality
+- FFI layer providing C API compatibility
+- Discovery protocol implementation
+- Async-friendly network communication
+- Type-safe node definitions and data handling
 
-# Usage
+## Usage
 
-## The library
+Add this to your `Cargo.toml`:
 
-This library is called **libwing**. You can find information on using the library in the [SDK docuemntation](SDK.md).
-
-#### Dependencies
-
-- MacOS, Linux, Windows
-- cmake
-- make
-- C++17 compiler
-
-#### Building
-
-To build the software, do the following:
-
-```
-cmake .
-make
+```toml
+[dependencies]
+wing = { path = "../rust" }  # Adjust path as needed
 ```
 
-This will build the **libwing** library and a couple of utilities that use it.
-Output binaries will end up in the build/ subdirectory.
+### Basic Example
 
-## The utilities
+```rust
+use wing::{WingConsole, NodeDefinition, NodeData};
 
-### wingschema
+fn main() -> wing::Result<()> {
+    // Discover Wing devices
+    let devices = WingConsole::scan(true);
+    if devices.is_empty() {
+        println!("No Wing devices found!");
+        return Ok(());
+    }
 
-**wingschema** can be run with zero arguments. It will discover the Wing on the
-network automatically. Once found, it will request every node and parameter's
-schema and save them to two files. This process takes about a minute over the
-network.
+    // Connect to first device found
+    let mut console = WingConsole::connect(&devices[0].ip)?;
+    
+    // Set up callbacks
+    console.on_node_definition = Some(Box::new(|def: NodeDefinition| {
+        println!("Node Definition: {} ({})", def.name, def.id);
+    }));
+    
+    console.on_node_data = Some(Box::new(|id: u32, data: NodeData| {
+        println!("Node {} data updated", id);
+    }));
 
-`wing-schema.jsonl` is for you to read, learn, and use as you want. It is a
-great resource for understanding the Wing's capabilities.
-
-`wing-schema.map` is loaded by **libwing** when you call
-`NodeDefinition::initMap(pathToMapFile)`. It contains a "name to ID" mapping of
-all the Wing's nodes and parameters. You can call this function at any time
-before calling the NodeDefinition::nodeNameToId() or NodeDefinition::nodeIdToName()
-functions. If you don't call initMap(), these 2 functions will not do much.
-
-### wingmon
-
-**wingmon** is a utility that connects to the Wing and prints out
-property changes. Just run it with no arguments (it'll discover the Wing on the
-network for you) and go manipulate your Wing via the console or one of the Wing
-apps. You'll see all the things that changed printed to the console.
-
-
-
-# Protocols
-
-There are 3 protocols available for controlling the Wing:
-
-- The Native protocol
-- The [OSC](https://en.wikipedia.org/wiki/Open_Sound_Control) protocol
-- The Discovery protocol
-
-The Native and OSC protocolss are documented
-[here](https://cdn.mediavalet.com/aunsw/musictribe/mzolJdOzu0WZG59pX2LDkA/drJQVBUjakq76Xn2GcaT0Q/Original/WING%20Remote%20Protocols%20v3.0.5.pdf)
-(as of Wing firmware v3.0.5) by Patrick-Gilles Maillot. A copy of that document
-is checked in to this repo just in case the above link is not available. The
-file is called Wing-Remote-Protocols.pdf.
-
-The Wing's Native protocol is a binary protocol that is more efficient and reliable
-than OSC. It is the protocol used by all the Behringer Wing apps to communicate
-with the Wing. **libwing** implements the Native protocol.
-
-**libwing** does not implement the OSC protocol, but there are many other
-libraries available that do support OSC.
-
-## Discovery Protocol
-
-This simple protocol allows a client on the network to discover Wing devices on
-the network. **libwing** implements this discovery protocol.
-
-To discover a Wing device on your network, send a 5 byte UDP packet containing
-the following bytes to your network broadcast IP on UDP port 2222.
-
-```
-0x57, 0x49, 0x4E, 0x47, 0x3F       // ASCII for W, I, N, G, ?
+    // Request some node data
+    console.request_node_definition(0)?;
+    
+    // Main event loop
+    loop {
+        console.read()?;
+    }
+}
 ```
 
-Your Wing unit(s) will respond with a UDP packet containing a commma-separated
-list of fields. The fields are as follows:
+## Building
 
-```
-WING,ip,name,model,serial,firmware
-```
+The library uses standard Rust tooling:
 
-For example, my Wing Compact running firmware 3.0.5 looks like this (I've
-altered the identifying information for privacy reasons):
-
-```
-WING,192.168.1.19,WING-PP-93892216,wing-compact,01XXXUX06X3AEX,3.0.5-0-g0c2b9d4a:release
+```bash
+cd rust
+cargo build
+cargo test
 ```
 
-Other models seem to be:
+## FFI/C API
 
-- "wing" (possibly the full Wing in white)
-- "wing-rack" (the rackmount version)
-- "wing-bk" (a black version of the full Wing console)
-- "ngc-full" (the full Wing console in white)
+The library provides a complete C API through FFI bindings. This allows seamless integration with existing C/C++ code while maintaining memory safety through Rust's ownership model.
 
-I can only confirm the "wing-compact" model, as that is the only one I have
-access to. If someone would like to report the model for any others, please do
-so with a pull request updating this doc.
-
-##### Broadcast IP
-
-You can compute the broadcast IP by taking the bitwise OR of the IP and the
-bitwise NOT of the subnet mask (broadcast = ip | ~subnet). For example, if you
-are 192.168.1.23 / 255.255.255.0, then your broadcast would be 192.168.1.255.
-
-You can also send it to 255.255.255.255 as your router will most likely block
-your packet from leaving your local network.
+See wing_c_api.h for the complete C API documentation.
