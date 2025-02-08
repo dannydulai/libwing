@@ -26,6 +26,7 @@ Additionally, you can find a [dart](https://dart.dev) package is also available 
 This library is published at crates.io, so you can add the library to your Cargo.toml using `cargo`:
 ```
 cargo add libwing
+cargo build --all-targets
 ```
 
 Check out the code in the tools/ subdir for simple utilities that discovers,

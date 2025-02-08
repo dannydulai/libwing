@@ -1,7 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_float};
 use std::ptr;
-use crate::{WingConsole, WingNodeDef, NodeType, NodeUnit, WingResponse};
+use crate::{WingConsole, NodeType, NodeUnit, WingResponse};
 
 // Opaque type wrappers
 #[repr(C)]
@@ -273,10 +273,10 @@ pub extern "C" fn wing_node_data_has_int(handle: *const ResponseHandle) -> c_int
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_name_to_id(name: *const c_char) -> i32 {
+pub extern "C" fn wing_name_to_id(name: *const c_char) -> i32 {
     unsafe {
         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
-            WingNodeDef::node_name_to_id(name_str)
+            WingConsole::name_to_id(name_str)
         } else {
             0
         }
@@ -284,8 +284,8 @@ pub extern "C" fn wing_node_name_to_id(name: *const c_char) -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_id_to_name(id: i32) -> *const c_char {
-    let name = WingNodeDef::node_id_to_name(id);
+pub extern "C" fn wing_id_to_name(id: i32) -> *const c_char {
+    let name = WingConsole::id_to_name(id);
     if let Some(name) = name {
         CString::new(name).unwrap().into_raw()
     } else {

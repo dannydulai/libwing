@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use libwing::{WingConsole, WingResponse, WingNodeDef};
+use libwing::{WingConsole, WingResponse};
 use std::result::Result;
 
 fn main() -> Result<(),libwing::Error> {
@@ -37,12 +37,12 @@ fn main() -> Result<(),libwing::Error> {
     let mut console = WingConsole::connect(&device.ip)?;
     println!("Connected!");
     
-    // Main event loop
     loop {
         if let WingResponse::NodeData(id, data) =  console.read()? {
-            println!("Node {} ({:06X}) = {}", 
-                WingNodeDef::node_id_to_name(id).unwrap_or("Unknown"),
-                id, data.get_string());
+            println!("{:08X} {} = {}", 
+                id,
+                WingConsole::id_to_name(id).unwrap_or("Unknown"),
+                data.get_string());
         }
     }
 }

@@ -1,21 +1,7 @@
-use std::collections::HashMap;
-
-use crate::propmap::NAME_TO_ID;
-
-lazy_static::lazy_static! {
-    static ref ID_TO_NAME: HashMap<i32, &'static str> = {
-        let mut id2name = HashMap::new();
-        if (id2name).is_empty() {
-            for (name, id) in NAME_TO_ID.iter() {
-                id2name.insert(*id, &name[..]);
-            }
-        }
-        id2name
-    };
-}
+use crate::console::WingConsole;
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum NodeType {
     Node = 0,
     LinearFloat = 1,
@@ -28,7 +14,7 @@ pub enum NodeType {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum NodeUnit {
     None = 0,
     Db = 1,
@@ -175,11 +161,175 @@ impl WingNodeDef {
         self.read_only
     }
 
-    pub fn node_name_to_id(fullname: &str) -> i32 {
-        NAME_TO_ID.get(fullname).copied().unwrap_or(0)
+    pub fn to_description(&self) -> String {
+        let fullname = WingConsole::id_to_name(self.id).unwrap_or(&self.name);
+
+        let mut r = String::with_capacity(1000);
+
+        r.push_str(fullname);
+        if self.read_only {
+            r.push_str(" [read-only]");
+        }
+        if self.index != 0 {
+            r.push_str(&format!("\n    Index: {}", self.index));
+        }
+        if !self.name.is_empty() {
+            r.push_str(&format!("\n    Name: {}", self.name));
+        }
+        if !self.long_name.is_empty() {
+            r.push_str(&format!("\n    Long Name: {}", self.long_name));
+        }
+
+        r.push_str("\n    Type: ");
+        match self.node_type {
+            NodeType::Node             => { r.push_str("node"); }
+            NodeType::LinearFloat      => { r.push_str("linear float"); }
+            NodeType::LogarithmicFloat => { r.push_str("log float"); }
+            NodeType::Integer          => { r.push_str("integer"); }
+            NodeType::String           => { r.push_str("string"); }
+            NodeType::FaderLevel       => { r.push_str("fader level (float)"); }
+            NodeType::StringEnum       => { r.push_str("string enum"); }
+            NodeType::FloatEnum        => { r.push_str("float enum"); }
+        }
+        if self.unit != NodeUnit::None {
+            r.push_str("\n    Unit: ");
+            match self.unit {
+                NodeUnit::Db           => { r.push_str("dB"); }
+                NodeUnit::Percent      => { r.push('%'); }
+                NodeUnit::Milliseconds => { r.push_str("ms"); }
+                NodeUnit::Hertz        => { r.push_str("Hz"); }
+                NodeUnit::Meters       => { r.push_str("meters"); }
+                NodeUnit::Seconds      => { r.push_str("seconds"); }
+                NodeUnit::Octaves      => { r.push_str("octaves"); }
+                _ => {}
+            }
+        }
+
+        match self.node_type {
+            NodeType::LinearFloat | 
+            NodeType::LogarithmicFloat |
+            NodeType::FaderLevel => {
+                if let Some(min_float) = self.min_float { r.push_str(&format!("\n    Minimum: {}", min_float)); }
+                if let Some(max_float) = self.max_float { r.push_str(&format!("\n    Maximum: {}", max_float)); }
+                if let Some(steps)     = self.steps     { r.push_str(&format!("\n    Steps:   {}", steps)); }
+            }
+            NodeType::Integer => {
+                if let Some(min_int) = self.min_int { r.push_str(&format!("\n    Minimum: {}", min_int)); }
+                if let Some(max_int) = self.max_int { r.push_str(&format!("\n    Maximum: {}", max_int)); }
+            }
+            NodeType::String => {
+                if let Some(max_string_len) = self.max_string_len { r.push_str(&format!("\n    Maximum String Length: {}", max_string_len)); }
+            }
+            NodeType::StringEnum  => {
+                if self.string_enum.is_some() {
+                    r.push_str("\n    Items:");
+                    for item in self.string_enum.as_ref().unwrap() {
+                        r.push_str(&format!("\n        • {}", item.item));
+                        if !item.long_item.is_empty() {
+                            r.push_str(&format!(" ({})", item.long_item));
+                        }
+                    }
+                }
+            }
+            NodeType::FloatEnum => {
+                if self.float_enum.is_some() {
+                    r.push_str("\n    Items:");
+                    for item in self.float_enum.as_ref().unwrap() {
+                        r.push_str(&format!("\n        • {}", item.item));
+                        if !item.long_item.is_empty() {
+                            r.push_str(&format!(" ({})", item.long_item));
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        r
     }
 
-    pub fn node_id_to_name(id: i32) -> Option<&'static str> {
-        ID_TO_NAME.get(&id).map(|x| &**x)
+    pub fn to_json(&self) -> jzon::JsonValue {
+        let mut json = jzon::object!{
+            id: self.id,
+        };
+
+        if let Some(fullname) = WingConsole::id_to_name(self.id) {
+            json.insert("fullname", fullname).unwrap();
+        }
+
+        if self.index != 0 { 
+            json.insert("index", self.index).unwrap();
+        }
+        if !self.name.is_empty() {
+            json.insert("name", self.name.clone()).unwrap();
+        }
+        if !self.long_name.is_empty() {
+            json.insert("longname", self.long_name.clone()).unwrap();
+        }
+
+        match self.node_type {
+            NodeType::Node             => { json.insert("type", "node").unwrap(); }
+            NodeType::LinearFloat      => { json.insert("type", "linear float").unwrap(); }
+            NodeType::LogarithmicFloat => { json.insert("type", "log float").unwrap(); }
+            NodeType::Integer          => { json.insert("type", "integer").unwrap(); }
+            NodeType::String           => { json.insert("type", "string").unwrap(); }
+            NodeType::FaderLevel       => { json.insert("type", "fader level").unwrap(); }
+            NodeType::StringEnum       => { json.insert("type", "string enum").unwrap(); }
+            NodeType::FloatEnum        => { json.insert("type", "float enum").unwrap(); }
+        }
+        match self.unit {
+            NodeUnit::None         => { }
+            NodeUnit::Db           => { json.insert("unit", "dB").unwrap(); }
+            NodeUnit::Percent      => { json.insert("unit", "%").unwrap(); }
+            NodeUnit::Milliseconds => { json.insert("unit", "ms").unwrap(); }
+            NodeUnit::Hertz        => { json.insert("unit", "Hz").unwrap(); }
+            NodeUnit::Meters       => { json.insert("unit", "meters").unwrap(); }
+            NodeUnit::Seconds      => { json.insert("unit", "seconds").unwrap(); }
+            NodeUnit::Octaves      => { json.insert("unit", "octaves").unwrap(); }
+        }
+
+        if self.read_only {
+            json.insert("read_only", true).unwrap();
+        }
+
+        match self.node_type {
+            NodeType::LinearFloat | 
+            NodeType::LogarithmicFloat |
+            NodeType::FaderLevel => {
+                if let Some(min_float) = self.min_float { json.insert("minfloat", min_float).unwrap(); }
+                if let Some(max_float) = self.max_float { json.insert("maxfloat", max_float).unwrap(); }
+                if let Some(steps) = self.steps { json.insert("steps", steps).unwrap(); }
+            }
+            NodeType::Integer => {
+                if let Some(min_int) = self.min_int { json.insert("minint", min_int).unwrap(); }
+                if let Some(max_int) = self.max_int { json.insert("maxint", max_int).unwrap(); }
+            }
+            NodeType::String => {
+                if let Some(max_string_len) = self.max_string_len { json.insert("maxstringlen", max_string_len).unwrap(); }
+            }
+            NodeType::StringEnum  => {
+                if self.string_enum.is_some() {
+                    json.insert("items", self.string_enum.as_ref().unwrap().iter().map(|item| {
+                        let mut j = jzon::object!{ "item": item.item.clone() };
+                        if !item.long_item.is_empty() {
+                            j.insert("longitem", item.long_item.clone()).unwrap();
+                        }
+                        j
+                    }).collect::<Vec<_>>()).unwrap();
+                }
+            }
+            NodeType::FloatEnum => {
+                if self.float_enum.is_some() {
+                    json.insert("items", self.float_enum.as_ref().unwrap().iter().map(|item| {
+                        let mut j = jzon::object!{ "item": item.item };
+                        if !item.long_item.is_empty() {
+                            j.insert("longitem", item.long_item.clone()).unwrap();
+                        }
+                        j
+                    }).collect::<Vec<_>>()).unwrap();
+                }
+            }
+            _ => {}
+        }
+        json
     }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::{TcpStream, UdpSocket};
 use std::io::{Read, Write};
 use std::time::Duration;
@@ -5,6 +6,20 @@ use std::time::Duration;
 use crate::{Result, Error};
 use crate::node::{WingNodeDef, WingNodeData, NodeType, NodeUnit, StringEnumItem, FloatEnumItem};
 use crate::WingResponse;
+
+use crate::propmap::ID_TO_DATA;
+
+lazy_static::lazy_static! {
+    static ref NAME_TO_ID: HashMap<&'static str, i32> = {
+        let mut name2id = HashMap::<&'static str, i32>::new();
+        if name2id.is_empty() {
+            for (id, (name, _, _)) in ID_TO_DATA.iter() {
+                name2id.insert(name, *id);
+            }
+        }
+        name2id
+    };
+}
 
 const RX_BUFFER_SIZE: usize = 2048;
 
@@ -481,6 +496,37 @@ impl WingConsole {
 
         self.stream.write_all(&buf)?;
         Ok(())
+    }
+
+    pub fn name_to_id(fullname: &str) -> i32 {
+        if let Ok(num) = fullname.parse::<i32>() {
+            num
+        } else {
+            NAME_TO_ID.get(fullname).copied().unwrap_or(0)
+        }
+    }
+
+    pub fn id_to_name(id: i32) -> Option<&'static str> {
+        ID_TO_DATA.get(&id).map(|x| &*x.0)
+    }
+
+    pub fn id_to_parent(id: i32) -> Option<i32> {
+        ID_TO_DATA.get(&id).map(|x| x.1)
+    }
+
+    pub fn id_to_type(id: i32) -> Option<NodeType> {
+        let ty = ID_TO_DATA.get(&id).map(|x| x.2);
+        match ty {
+            Some(0) => Some(NodeType::Node),
+            Some(1) => Some(NodeType::LinearFloat),
+            Some(2) => Some(NodeType::LogarithmicFloat),
+            Some(3) => Some(NodeType::FaderLevel),
+            Some(4) => Some(NodeType::Integer),
+            Some(5) => Some(NodeType::StringEnum),
+            Some(6) => Some(NodeType::FloatEnum),
+            Some(7) => Some(NodeType::String),
+            _ => None,
+        }
     }
 }
 

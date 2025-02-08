@@ -26,3 +26,7 @@ path = "tools/wingmon.rs"
 [[bin]]
 name = "wingschema"
 path = "tools/wingschema.rs"
+
+[[bin]]
+name = "wingprop"
+path = "tools/wingprop.rs"

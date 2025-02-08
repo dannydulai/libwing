@@ -3,10 +3,7 @@ use std::io::{self, Write};
 use std::sync::RwLock;
 use std::result::Result;
 use std::collections::HashMap;
-use libwing::{WingConsole, WingResponse, WingNodeDef, NodeType, NodeUnit};
-
-#[macro_use]
-extern crate jzon;
+use libwing::{WingConsole, WingResponse, WingNodeDef, NodeType};
 
 lazy_static::lazy_static! {
     static ref node_parent_to_children: RwLock<HashMap::<i32, Vec<i32>>> = RwLock::new(HashMap::<i32, Vec<i32>>::new());
@@ -57,11 +54,19 @@ fn print_node(json_file: &mut File, rust_file: &mut Vec<u8>, node_id: i32, recur
         let h = node_id_to_def.read().unwrap();
         let def = h.get(&node_id).unwrap();
 
-        // Format and output JSON
-        let mut json = object!{ id: def.id };
+        let mut json = def.to_json();
 
-        let mut fullname = def.name.clone();
+        // the json is good here, but the fullname is based on the propmap.rs file, which this is
+        // creating... so let's just build it up from scratch ourselves and replace the given
+        // fullname
+
         let mut n = def;
+        let mut fullname : String;
+        if n.name.is_empty() {
+            fullname = n.index.to_string();
+        } else {
+            fullname = n.name.clone();
+        }
         while n.parent_id != 0 {
             if !h.contains_key(&n.parent_id) {
                 fullname = "???/".to_owned() + &fullname[..];
@@ -76,86 +81,14 @@ fn print_node(json_file: &mut File, rust_file: &mut Vec<u8>, node_id: i32, recur
             }
         }
         if n.parent_id == 0 { fullname = "/".to_owned() + &fullname[..]; }
-
         json.insert("fullname", fullname.clone()).unwrap();
+        println!("{}: {}, {}", node_id, fullname, n.index);
 
-        if def.index != 0 { 
-            json.insert("index", def.index).unwrap();
-        }
-        if !def.name.is_empty() {
-            json.insert("name", def.name.clone()).unwrap();
-        }
-        if !def.long_name.is_empty() {
-            json.insert("longname", def.long_name.clone()).unwrap();
-        }
-
-        match def.node_type {
-            NodeType::Node             => { json.insert("type", "node").unwrap(); }
-            NodeType::LinearFloat      => { json.insert("type", "linear float").unwrap(); }
-            NodeType::LogarithmicFloat => { json.insert("type", "log float").unwrap(); }
-            NodeType::Integer          => { json.insert("type", "integer").unwrap(); }
-            NodeType::String           => { json.insert("type", "string").unwrap(); }
-            NodeType::FaderLevel       => { json.insert("type", "fader level").unwrap(); }
-            NodeType::StringEnum       => { json.insert("type", "string enum").unwrap(); }
-            NodeType::FloatEnum        => { json.insert("type", "float enum").unwrap(); }
-        }
-        match def.unit {
-            NodeUnit::None         => { }
-            NodeUnit::Db           => { json.insert("unit", "dB").unwrap(); }
-            NodeUnit::Percent      => { json.insert("unit", "%").unwrap(); }
-            NodeUnit::Milliseconds => { json.insert("unit", "ms").unwrap(); }
-            NodeUnit::Hertz        => { json.insert("unit", "Hz").unwrap(); }
-            NodeUnit::Meters       => { json.insert("unit", "meters").unwrap(); }
-            NodeUnit::Seconds      => { json.insert("unit", "seconds").unwrap(); }
-            NodeUnit::Octaves      => { json.insert("unit", "octaves").unwrap(); }
-        }
-
-        if def.read_only {
-            json.insert("read_only", true).unwrap();
-        }
-
-        match def.node_type {
-            NodeType::LinearFloat | 
-            NodeType::LogarithmicFloat |
-            NodeType::FaderLevel => {
-                if let Some(min_float) = def.min_float { json.insert("minfloat", min_float).unwrap(); }
-                if let Some(max_float) = def.max_float { json.insert("maxfloat", max_float).unwrap(); }
-                if let Some(steps) = def.steps { json.insert("steps", steps).unwrap(); }
-            }
-            NodeType::Integer => {
-                if let Some(min_int) = def.min_int { json.insert("minint", min_int).unwrap(); }
-                if let Some(max_int) = def.max_int { json.insert("maxint", max_int).unwrap(); }
-            }
-            NodeType::String => {
-                if let Some(max_string_len) = def.max_string_len { json.insert("maxstringlen", max_string_len).unwrap(); }
-            }
-            NodeType::StringEnum  => {
-                if def.string_enum.is_some() {
-                    json.insert("items", def.string_enum.as_ref().unwrap().iter().map(|item| {
-                        let mut j = object!{ "item": item.item.clone() };
-                        if !item.long_item.is_empty() {
-                            j.insert("longitem", item.long_item.clone()).unwrap();
-                        }
-                        j
-                    }).collect::<Vec<_>>()).unwrap();
-                }
-            }
-            NodeType::FloatEnum => {
-                if def.float_enum.is_some() {
-                    json.insert("items", def.float_enum.as_ref().unwrap().iter().map(|item| {
-                        let mut j = object!{ "item": item.item };
-                        if !item.long_item.is_empty() {
-                            j.insert("longitem", item.long_item.clone()).unwrap();
-                        }
-                        j
-                    }).collect::<Vec<_>>()).unwrap();
-                }
-            }
-            _ => {}
-        }
         writeln!(json_file, "{}", jzon::stringify(json)).unwrap();
 
         for b in def.id.to_be_bytes() { rust_file.push(b); }
+        for b in def.parent_id.to_be_bytes() { rust_file.push(b); }
+        rust_file.push(def.node_type as u8);
         for b in (fullname.len() as u16).to_be_bytes() { rust_file.push(b); }
         for b in fullname.into_bytes() { rust_file.push(b); }
     }
@@ -243,7 +176,7 @@ fn main() -> Result<(),libwing::Error> {
                     pending_requests += v;
                     if v == 0 {
                         println!("Schema retrieval complete. {} records received.", node_id_to_def.read().unwrap().len());
-                        println!("Writing schema files (schema.jsonl and schema.rs)...");
+                        println!("Writing schema files (propmap.jsonl and propmap.rs)...");
                         let mut json_file = std::fs::OpenOptions::new()
                             .write(true)
                             .create(true)
@@ -262,7 +195,7 @@ fn main() -> Result<(),libwing::Error> {
                         writeln!(rust_file, "lazy_static::lazy_static! {{").unwrap();
                         let mut vec = Vec::<u8>::new();
                         print_node(&mut json_file, &mut vec, 0, true);
-                        writeln!(rust_file, "    pub static ref NAME_TO_ID: HashMap<String, i32> = {{").unwrap();
+                        writeln!(rust_file, "    pub static ref ID_TO_DATA: HashMap<i32, (String, i32, u8)> = {{").unwrap();
                         writeln!(rust_file, "        let mut m = HashMap::new();").unwrap();
                         write!(  rust_file, "        let d = b\"").unwrap();
                         for b in vec { write!(rust_file, "\\x{:02X}", b).unwrap(); }
@@ -271,11 +204,15 @@ fn main() -> Result<(),libwing::Error> {
                         writeln!(rust_file, "        while i < d.len() {{").unwrap();
                         writeln!(rust_file, "            let id = i32::from_be_bytes([d[i], d[i + 1], d[i + 2], d[i + 3]]);").unwrap();
                         writeln!(rust_file, "            i += 4;").unwrap();
+                        writeln!(rust_file, "            let parent = i32::from_be_bytes([d[i], d[i + 1], d[i + 2], d[i + 3]]);").unwrap();
+                        writeln!(rust_file, "            i += 4;").unwrap();
+                        writeln!(rust_file, "            let ty = d[i];").unwrap();
+                        writeln!(rust_file, "            i += 1;").unwrap();
                         writeln!(rust_file, "            let len = i16::from_be_bytes([d[i], d[i + 1]]) as usize;").unwrap();
                         writeln!(rust_file, "            i += 2;").unwrap();
                         writeln!(rust_file, "            let name = String::from_utf8(d[i..i + len].to_vec()).unwrap();").unwrap();
                         writeln!(rust_file, "            i += len;").unwrap();
-                        writeln!(rust_file, "            m.insert(name, id);").unwrap();
+                        writeln!(rust_file, "            m.insert(id, (name, parent, ty));").unwrap();
                         writeln!(rust_file, "        }}").unwrap();
                         writeln!(rust_file, "        m").unwrap();
                         writeln!(rust_file, "    }};").unwrap();
