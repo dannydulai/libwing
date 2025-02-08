@@ -1,8 +1,8 @@
 # Introduction to libwing
 
 This is a library for discovering and controlling the [Behringer
-Wing](https://www.behringer.com/behringer/wing) mixer over the local network.
-It also includes a series of utilities built using this library.
+Wing](https://www.behringer.com/behringer/wing) digital mixer over the local
+network. It also includes a series of utilities built using this library.
 
 Included in this package are:
 
