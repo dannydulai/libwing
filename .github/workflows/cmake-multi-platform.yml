@@ -12,14 +12,17 @@ jobs:
     runs-on: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
-
     - name: build libwing
-    - run: cargo build
+      uses: actions/checkout@v4
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      run: cargo build
 
     - name: build wingmon
-    - run: cargo build --bin wingmon
+      uses: actions/checkout@v4
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      run: cargo build --bin wingmon
 
     - name: build wingschema
-    - run: cargo build --bin wingschema
+      uses: actions/checkout@v4
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      run: cargo build --bin wingschema
