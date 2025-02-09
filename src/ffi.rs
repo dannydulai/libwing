@@ -206,6 +206,17 @@ pub extern "C" fn wing_response_get_type(handle: *const ResponseHandle) -> Respo
 }
 
 #[no_mangle]
+pub extern "C" fn wing_response_get_node_id(handle: *const ResponseHandle) -> i32 {
+    unsafe {
+        match &(*handle).response {
+            WingResponse::NodeData(id, _) => *id,
+            WingResponse::NodeDef(def) => def.id,
+            _ => 0
+        }
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn wing_node_data_get_string(handle: *const ResponseHandle) -> *const c_char {
     unsafe {
         if let WingResponse::NodeData(_, data) = &(*handle).response {
@@ -364,6 +375,17 @@ pub extern "C" fn wing_node_definition_get_long_name(def: *const ResponseHandle)
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             CString::new(&def.long_name[..]).unwrap().into_raw()
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_is_read_only(def: *const ResponseHandle) -> c_int {
+    unsafe {
+        if let WingResponse::NodeDef(def) = &(*def).response {
+            if def.read_only { 1 } else { 0 }
         } else {
             panic!("Invalid response type");
         }
