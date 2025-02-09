@@ -99,6 +99,7 @@ int wing_node_definition_get_string_enum_long_item(const ResponseHandle* handle,
 // Utility functions
 int32_t wing_name_to_id(const char* name);
 const char* wing_id_to_name(int32_t id);
+int32_t wing_parse_id(const char* name);
 void wing_string_destroy(const char* handle);
 
 #ifdef __cplusplus

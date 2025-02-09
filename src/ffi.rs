@@ -305,6 +305,17 @@ pub extern "C" fn wing_id_to_name(id: i32) -> *const c_char {
 }
 
 #[no_mangle]
+pub extern "C" fn wing_parse_id(name: *const c_char) -> i32 {
+    unsafe {
+        if let Ok(name_str) = CStr::from_ptr(name).to_str() {
+            WingConsole::parse_id(name_str).unwrap_or(0)
+        } else {
+            0
+        }
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn wing_node_definition_get_parent_id(def: *const ResponseHandle) -> i32 {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
