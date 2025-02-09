@@ -305,14 +305,30 @@ pub extern "C" fn wing_id_to_name(id: i32) -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn wing_parse_id(name: *const c_char) -> i32 {
+pub extern "C" fn wing_parse_id(name: *const c_char, out_name: *mut *mut c_char, out_id: *mut i32) -> c_int {
     unsafe {
         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
-            WingConsole::parse_id(name_str).unwrap_or(0)
+            if let Some((parsed_name, parsed_id)) = WingConsole::parse_id(name_str, true) {
+                *out_name = CString::new(parsed_name).unwrap().into_raw();
+                *out_id = parsed_id;
+                1
+            } else {
+                0
+            }
         } else {
             0
         }
     }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_id_to_parent(id: i32) -> i32 {
+    WingConsole::id_to_parent(id).unwrap_or(0)
+}
+
+#[no_mangle]
+pub extern "C" fn wing_id_to_type(id: i32) -> NodeType {
+    WingConsole::id_to_type(id).unwrap_or(NodeType::Node)
 }
 
 #[no_mangle]
