@@ -97,9 +97,9 @@ int wing_node_definition_get_string_enum_item(const ResponseHandle* handle, size
 int wing_node_definition_get_string_enum_long_item(const ResponseHandle* handle, size_t index, char** ret);
 
 // Utility functions
-int32_t wing_name_to_id(const char* name);
+int wing_name_to_id(const char* name, int32_t* out_id);
 const char* wing_id_to_name(int32_t id);
-int32_t wing_id_to_parent(int32_t id);
+int wing_id_to_parent(int32_t id, int32_t* out_parent);
 WingNodeType wing_id_to_type(int32_t id);
 int wing_parse_id(const char* name, char** out_name, int32_t* out_id);
 void wing_string_destroy(const char* handle);

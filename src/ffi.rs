@@ -284,10 +284,15 @@ pub extern "C" fn wing_node_data_has_int(handle: *const ResponseHandle) -> c_int
 }
 
 #[no_mangle]
-pub extern "C" fn wing_name_to_id(name: *const c_char) -> i32 {
+pub extern "C" fn wing_name_to_id(name: *const c_char, out_id: *mut i32) -> c_int {
     unsafe {
         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
-            WingConsole::name_to_id(name_str).unwrap_or(0)
+            if let Some(id) = WingConsole::name_to_id(name_str) {
+                *out_id = id;
+                1
+            } else {
+                0
+            }
         } else {
             0
         }
@@ -322,8 +327,15 @@ pub extern "C" fn wing_parse_id(name: *const c_char, out_name: *mut *mut c_char,
 }
 
 #[no_mangle]
-pub extern "C" fn wing_id_to_parent(id: i32) -> i32 {
-    WingConsole::id_to_parent(id).unwrap_or(0)
+pub extern "C" fn wing_id_to_parent(id: i32, out_parent: *mut i32) -> c_int {
+    if let Some(parent) = WingConsole::id_to_parent(id) {
+        unsafe {
+            *out_parent = parent;
+        }
+        1
+    } else {
+        0
+    }
 }
 
 #[no_mangle]
