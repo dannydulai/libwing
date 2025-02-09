@@ -206,12 +206,12 @@ pub extern "C" fn wing_response_get_type(handle: *const ResponseHandle) -> Respo
 }
 
 #[no_mangle]
-pub extern "C" fn wing_response_get_node_id(handle: *const ResponseHandle) -> i32 {
+pub extern "C" fn wing_node_data_get_id(handle: *const ResponseHandle) -> i32 {
     unsafe {
-        match &(*handle).response {
-            WingResponse::NodeData(id, _) => *id,
-            WingResponse::NodeDef(def) => def.id,
-            _ => 0
+        if let WingResponse::NodeData(id, _) = &(*handle).response {
+            *id
+        } else {
+            0
         }
     }
 }
@@ -310,7 +310,7 @@ pub extern "C" fn wing_id_to_name(id: i32) -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn wing_parse_id(name: *const c_char, out_name: *mut *mut c_char, out_id: *mut i32) -> c_int {
+pub extern "C" fn wing_parse_id(name: *const c_char, out_name: *mut *const c_char, out_id: *mut i32) -> c_int {
     unsafe {
         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
             if let Some((parsed_name, parsed_id)) = WingConsole::parse_id(name_str, true) {
@@ -528,11 +528,11 @@ pub extern "C" fn wing_node_definition_get_max_string_len(def: *const ResponseHa
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_string_enum_count(def: *const ResponseHandle) -> usize {
+pub extern "C" fn wing_node_definition_get_string_enum_count(def: *const ResponseHandle) -> c_int {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(string_enum) = &def.string_enum {
-                string_enum.len()
+                string_enum.len() as c_int
             } else {
                 0
             }
@@ -543,11 +543,11 @@ pub extern "C" fn wing_node_definition_get_string_enum_count(def: *const Respons
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_float_enum_count(def: *const ResponseHandle) -> usize {
+pub extern "C" fn wing_node_definition_get_float_enum_count(def: *const ResponseHandle) -> c_int {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(float_enum) = &def.float_enum {
-                float_enum.len()
+                float_enum.len() as c_int
             } else {
                 0
             }
@@ -558,11 +558,11 @@ pub extern "C" fn wing_node_definition_get_float_enum_count(def: *const Response
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_float_enum_item(def: *const ResponseHandle, index: usize, ret: *mut c_float) -> c_int {
+pub extern "C" fn wing_node_definition_get_float_enum_item(def: *const ResponseHandle, index: c_int, ret: *mut c_float) -> c_int {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.float_enum {
-                if let Some(item) = item.get(index) {
+                if let Some(item) = item.get(index as usize) {
                     *ret = item.item;
                     1
                 } else {
@@ -578,11 +578,11 @@ pub extern "C" fn wing_node_definition_get_float_enum_item(def: *const ResponseH
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_float_enum_long_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
+pub extern "C" fn wing_node_definition_get_float_enum_long_item(def: *const ResponseHandle, index: c_int, ret: *mut *mut c_char) -> c_int {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.float_enum {
-                if let Some(item) = item.get(index) {
+                if let Some(item) = item.get(index as usize) {
                     *ret = CString::new(&item.long_item[..]).unwrap().into_raw();
                     1
                 } else {
@@ -598,11 +598,11 @@ pub extern "C" fn wing_node_definition_get_float_enum_long_item(def: *const Resp
 }
 
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_string_enum_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
+pub extern "C" fn wing_node_definition_get_string_enum_item(def: *const ResponseHandle, index: c_int, ret: *mut *mut c_char) -> c_int {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.string_enum {
-                if let Some(item) = item.get(index) {
+                if let Some(item) = item.get(index as usize) {
                     *ret = CString::new(&item.item[..]).unwrap().into_raw();
                     1
                 } else {
@@ -617,11 +617,11 @@ pub extern "C" fn wing_node_definition_get_string_enum_item(def: *const Response
     }
 }
 #[no_mangle]
-pub extern "C" fn wing_node_definition_get_string_enum_long_item(def: *const ResponseHandle, index: usize, ret: *mut *mut c_char) -> c_int {
+pub extern "C" fn wing_node_definition_get_string_enum_long_item(def: *const ResponseHandle, index: c_int, ret: *mut *mut c_char) -> c_int {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             if let Some(item) = &def.string_enum {
-                if let Some(item) = item.get(index) {
+                if let Some(item) = item.get(index as usize) {
                     *ret = CString::new(&item.long_item[..]).unwrap().into_raw();
                     1
                 } else {
