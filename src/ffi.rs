@@ -276,7 +276,7 @@ pub extern "C" fn wing_node_data_has_int(handle: *const ResponseHandle) -> c_int
 pub extern "C" fn wing_name_to_id(name: *const c_char) -> i32 {
     unsafe {
         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
-            WingConsole::name_to_id(name_str)
+            WingConsole::name_to_id(name_str).unwrap_or(0)
         } else {
             0
         }

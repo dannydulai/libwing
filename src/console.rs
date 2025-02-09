@@ -444,10 +444,10 @@ impl WingConsole {
         if value.is_empty() {
             buf.push(0xd0);
         } else if value.len() <= 64 {
-            buf.push((0x3f + value.len()).try_into().unwrap());
+            buf.push(0x3f + value.len() as u8);
         } else if value.len() <= 256 {
             buf.push(0xd1);
-            buf.push((value.len()-1).try_into().unwrap());
+            buf.push((value.len()-1) as u8);
         }
 
         for c in value.bytes() {
@@ -498,11 +498,11 @@ impl WingConsole {
         Ok(())
     }
 
-    pub fn name_to_id(fullname: &str) -> i32 {
+    pub fn name_to_id(fullname: &str) -> Option<i32> {
         if let Ok(num) = fullname.parse::<i32>() {
-            num
+            Some(num)
         } else {
-            NAME_TO_ID.get(fullname).copied().unwrap_or(0)
+            NAME_TO_ID.get(fullname).copied()
         }
     }
 
@@ -527,6 +527,30 @@ impl WingConsole {
             Some(7) => Some(NodeType::String),
             _ => None,
         }
+    }
+
+    pub fn parse_id(name: &str, must_have_both: bool) -> Option<(String, i32)> {
+        let propid;
+        let propname;
+
+        if let Ok(id) = name.parse::<i32>() {
+            propid = id;
+            if let Some(name) = WingConsole::id_to_name(id) {
+                propname = name.to_string(); 
+            } else if must_have_both {
+                return None;
+            } else {
+                propname = format!("<Unknown:0x{:08X}>", id);
+            }
+        } else {
+            propname = name.to_string();
+            if let Some(id) = WingConsole::name_to_id(name) {
+                propid = id;
+            } else {
+                return None;
+            }
+        }
+        Some((propname, propid))
     }
 }
 

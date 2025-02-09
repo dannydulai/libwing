@@ -29,4 +29,3 @@ pub enum WingResponse {
     NodeDef(WingNodeDef),
     NodeData(i32, WingNodeData),
 }
-
