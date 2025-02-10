@@ -30,6 +30,7 @@ pub enum ResponseType {
 #[no_mangle]
 pub extern "C" fn wing_string_destroy(handle: *const c_char) {
     unsafe {
+        if handle.is_null() { return; }
         drop(CString::from_raw(handle as *mut c_char));
     }
 }
