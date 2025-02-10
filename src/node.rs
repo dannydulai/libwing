@@ -162,11 +162,22 @@ impl WingNodeDef {
     }
 
     pub fn to_description(&self) -> String {
-        let fullname = WingConsole::id_to_name(self.id).unwrap_or(&self.name);
+        let fullname = WingConsole::id_to_name(self.id);
 
         let mut r = String::with_capacity(1000);
 
-        r.push_str(fullname);
+        if let Some(fullname) = fullname {
+            r.push_str(fullname);
+        } else {
+            let pname = WingConsole::id_to_name(self.parent_id);
+            if let Some(pname) = pname {
+                r.push_str(pname);
+            } else {
+                r.push_str(&format!("<Unknown:{}>", self.parent_id));
+            }
+            r.push_str(&format!("/<Unknown:{}>", self.id));
+        }
+
         if self.read_only {
             r.push_str(" [read-only]");
         }
