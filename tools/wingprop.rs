@@ -96,7 +96,8 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                     std::process::exit(1);
                 }
                 Action::Lookup
-            } else { eprintln!("invalid argument. only 1 equals allowed.");
+            } else {
+                eprintln!("invalid argument. only 1 equals allowed.");
                 std::process::exit(1);
             }
         };
@@ -115,10 +116,10 @@ Usage: wingprop [-h host] [-j] property[=value|?]
 
     let mut console = WingConsole::connect(&host.unwrap())?;
     
-    let proptype = WingConsole::id_to_type(propid).unwrap();
+    let proptype = WingConsole::id_to_type(propid);
     match action {
         Action::Lookup => {
-            if proptype == NodeType::Node {
+            if proptype == Some(NodeType::Node) {
                 console.request_node_definition(propid)?;
             } else {
                 console.request_node_data(propid)?;
@@ -126,17 +127,21 @@ Usage: wingprop [-h host] [-j] property[=value|?]
         },
         Action::Set(val) => {
             match proptype {
-                NodeType::Node => {
+                None => {
+                    eprintln!("Property {} type could not be determined.", propname);
+                    std::process::exit(1);
+                },
+                Some(NodeType::Node) => {
                     eprintln!("Can not set node {} because it's a node, and not a property.", propname);
                     std::process::exit(1);
                 },
-                NodeType::StringEnum |
-                NodeType::String => {
+                Some(NodeType::StringEnum) |
+                Some(NodeType::String) => {
                     console.set_string(propid, &val)?;
                     std::thread::sleep(std::time::Duration::from_millis(100));
                     std::process::exit(0);
                 },
-                NodeType::Integer => {
+                Some(NodeType::Integer) => {
                     if let Ok(v) = val.parse::<i32>() {
                         console.set_int(propid, v)?;
                     } else {
@@ -145,10 +150,10 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                     std::thread::sleep(std::time::Duration::from_millis(100));
                     std::process::exit(0);
                 },
-                NodeType::FloatEnum |
-                NodeType::FaderLevel |
-                NodeType::LogarithmicFloat |
-                NodeType::LinearFloat => {
+                Some(NodeType::FloatEnum) |
+                Some(NodeType::FaderLevel) |
+                Some(NodeType::LogarithmicFloat) |
+                Some(NodeType::LinearFloat) => {
                     if let Ok(v) = val.parse::<f32>() {
                         console.set_float(propid, v)?;
                     } else {
@@ -160,7 +165,7 @@ Usage: wingprop [-h host] [-j] property[=value|?]
             }
         },
         Action::Definition => {
-            if proptype == NodeType::Node {
+            if proptype == Some(NodeType::Node) {
                 let parent = WingConsole::id_to_parent(propid).unwrap();
                 console.request_node_definition(parent)?;
             } else {
@@ -192,16 +197,20 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                 std::process::exit(0);
             },
             WingResponse::NodeData(id, data) => {
-//                println!("{:08X} = {}", id, data.get_string());
+//                println!("{} = {}", id, data.get_string());
                 if id == propid {
                     match proptype {
-                        NodeType::Node => {
+                        None => {
+                            eprintln!("Property {} type could not be determined.", propname);
+                            std::process::exit(1);
+                        },
+                        Some(NodeType::Node) => {
                             // println!("{} = {}", propname, data.get_string());
                             eprintln!("printing node for {}", propname);
 //                            std::process::exit(0);
                         },
-                        NodeType::StringEnum |
-                        NodeType::String => {
+                        Some(NodeType::StringEnum) |
+                        Some(NodeType::String) => {
                             if jsonoutput {
                                 println!("{}", data.get_string());
                             } else {
@@ -209,7 +218,7 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                             }
 //                            std::process::exit(0);
                         },
-                        NodeType::Integer => {
+                        Some(NodeType::Integer) => {
                             if jsonoutput {
                                 println!("{}", data.get_int());
                             } else {
@@ -217,10 +226,10 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                             }
 //                            std::process::exit(0);
                         },
-                        NodeType::FloatEnum |
-                        NodeType::LinearFloat |
-                        NodeType::LogarithmicFloat |
-                        NodeType::FaderLevel => {
+                        Some(NodeType::FloatEnum) |
+                        Some(NodeType::LinearFloat) |
+                        Some(NodeType::LogarithmicFloat) |
+                        Some(NodeType::FaderLevel) => {
                             if jsonoutput {
                                 println!("{}", data.get_float());
                             } else {
@@ -232,7 +241,7 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                 }
             },
             WingResponse::NodeDef(d) => {
- //               println!("<{:08X}> => {}", d.id, d.to_json());
+ //               println!("<{}> => {}", d.id, d.to_json());
                 if d.id == propid && matches!(action, Action::Definition) {
                     if jsonoutput {
                         println!("{}", d.to_json());
@@ -241,7 +250,7 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                     }
 //                    std::process::exit(0);
                 }
-                if proptype == NodeType::Node && matches!(action, Action::Lookup) && d.parent_id == propid {
+                if proptype == Some(NodeType::Node) && matches!(action, Action::Lookup) && d.parent_id == propid {
                     children.push(d.name.clone());
                 }
             },
