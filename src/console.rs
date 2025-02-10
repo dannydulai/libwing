@@ -444,7 +444,7 @@ impl WingConsole {
         if value.is_empty() {
             buf.push(0xd0);
         } else if value.len() <= 64 {
-            buf.push(0x3f + value.len() as u8);
+            buf.push(0x7f + value.len() as u8);
         } else if value.len() <= 256 {
             buf.push(0xd1);
             buf.push((value.len()-1) as u8);
@@ -540,7 +540,7 @@ impl WingConsole {
             } else if must_have_both {
                 return None;
             } else {
-                propname = format!("<Unknown:0x{:08X}>", id);
+                propname = format!("<Unknown:{}>", id);
             }
         } else {
             propname = name.to_string();
