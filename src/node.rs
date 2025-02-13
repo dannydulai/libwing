@@ -181,6 +181,7 @@ impl WingNodeDef {
         if self.read_only {
             r.push_str(" [read-only]");
         }
+        r.push_str(&format!("\n    Id: {}", self.id));
         if self.index != 0 {
             r.push_str(&format!("\n    Index: {}", self.index));
         }
