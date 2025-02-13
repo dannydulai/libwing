@@ -34,11 +34,11 @@ fn main() -> Result<(),libwing::Error> {
     };
 
     println!("Connecting to {} at {}...", device.name, device.ip);
-    let mut console = WingConsole::connect(&device.ip)?;
+    let mut wing = WingConsole::connect(&device.ip)?;
     println!("Connected!");
 
     loop {
-        if let WingResponse::NodeData(id, data) =  console.read()? {
+        if let WingResponse::NodeData(id, data) =  wing.read()? {
             println!("{} {} = {}",
                 id,
                 WingConsole::id_to_name(id).unwrap_or(&format!("<Unknown:{}>", id)),

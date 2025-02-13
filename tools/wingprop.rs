@@ -114,15 +114,15 @@ Usage: wingprop [-h host] [-j] property[=value|?]
         std::process::exit(1);
     }
 
-    let mut console = WingConsole::connect(&host.unwrap())?;
+    let mut wing = WingConsole::connect(&host.unwrap())?;
     
     let proptype = WingConsole::id_to_type(propid);
     match action {
         Action::Lookup => {
             if proptype == Some(NodeType::Node) {
-                console.request_node_definition(propid)?;
+                wing.request_node_definition(propid)?;
             } else {
-                console.request_node_data(propid)?;
+                wing.request_node_data(propid)?;
             }
         },
         Action::Set(val) => {
@@ -137,13 +137,13 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                 },
                 Some(NodeType::StringEnum) |
                 Some(NodeType::String) => {
-                    console.set_string(propid, &val)?;
+                    wing.set_string(propid, &val)?;
                     std::thread::sleep(std::time::Duration::from_millis(100));
                     std::process::exit(0);
                 },
                 Some(NodeType::Integer) => {
                     if let Ok(v) = val.parse::<i32>() {
-                        console.set_int(propid, v)?;
+                        wing.set_int(propid, v)?;
                     } else {
                         eprintln!("Property {} is an integer, but that was not passed: {}", propname, val);
                     }
@@ -155,7 +155,7 @@ Usage: wingprop [-h host] [-j] property[=value|?]
                 Some(NodeType::LogarithmicFloat) |
                 Some(NodeType::LinearFloat) => {
                     if let Ok(v) = val.parse::<f32>() {
-                        console.set_float(propid, v)?;
+                        wing.set_float(propid, v)?;
                     } else {
                         eprintln!("Property {} is a floating point number, but that was not passed: {}", propname, val);
                     }
@@ -167,9 +167,9 @@ Usage: wingprop [-h host] [-j] property[=value|?]
         Action::Definition => {
             if proptype == Some(NodeType::Node) {
                 let parent = WingConsole::id_to_parent(propid).unwrap();
-                console.request_node_definition(parent)?;
+                wing.request_node_definition(parent)?;
             } else {
-                console.request_node_definition(propid)?;
+                wing.request_node_definition(propid)?;
             }
         }
     }
@@ -178,7 +178,7 @@ Usage: wingprop [-h host] [-j] property[=value|?]
 
     // Main event loop
     loop {
-        match console.read()? {
+        match wing.read()? {
             WingResponse::RequestEnd => {
                 if !children.is_empty() {
                     if jsonoutput {

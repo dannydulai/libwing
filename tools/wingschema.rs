@@ -10,13 +10,13 @@ lazy_static::lazy_static! {
     static ref node_id_to_def: RwLock<HashMap::<i32, WingNodeDef>> = RwLock::new(HashMap::<i32, WingNodeDef>::new());
 }
 
-fn req(node_id: i32, console: &mut WingConsole) -> i32 {
+fn req(node_id: i32, wing: &mut WingConsole) -> i32 {
     let mut done = 0;
 
     if ! node_parent_to_children.read().unwrap().contains_key(&node_id) {
         node_parent_to_children.write().unwrap().insert(node_id, Vec::<i32>::new());
         done += 1;
-        console.request_node_definition(node_id).unwrap();
+        wing.request_node_definition(node_id).unwrap();
         if done >= 100 { return done; }
     }
 
@@ -29,7 +29,7 @@ fn req(node_id: i32, console: &mut WingConsole) -> i32 {
             if def.node_type == NodeType::Node && ! has_child {
                 node_parent_to_children.write().unwrap().insert(child, Vec::<i32>::new());
                 done += 1;
-                console.request_node_definition(child).unwrap();
+                wing.request_node_definition(child).unwrap();
                 if done >= 100 { return done; }
             }
         }
@@ -40,7 +40,7 @@ fn req(node_id: i32, console: &mut WingConsole) -> i32 {
         for child in children {
             let def = h.get(&child).unwrap();
             if def.node_type == NodeType::Node {
-                done += req(child, console);
+                done += req(child, wing);
                 if done >= 100 { return done; }
             }
         }
@@ -134,7 +134,7 @@ fn main() -> Result<(),libwing::Error> {
 
     print!("Connecting to {} at {}...", device.name, device.ip);
     io::stdout().flush()?;
-    let mut console = WingConsole::connect(&device.ip)?;
+    let mut wing = WingConsole::connect(&device.ip)?;
     println!("connected!");
 
     // Track parent-child relationships and node definitions
@@ -142,12 +142,12 @@ fn main() -> Result<(),libwing::Error> {
     let mut end_requests = 0;
 
     // Start with root node
-    console.request_node_definition(0)?;
+    wing.request_node_definition(0)?;
     pending_requests += 1;
 
     // Process responses until we've handled all requests
     loop { 
-        match console.read()? {
+        match wing.read()? {
             WingResponse::NodeData(_,_) => { }
             WingResponse::NodeDef(def) => {
                 // Store the node definition
@@ -171,7 +171,7 @@ fn main() -> Result<(),libwing::Error> {
                 end_requests += 1;
 //                println!("\nReceived request end, pending: {}, end: {}", pending_requests, end_requests);
                 if end_requests == pending_requests {
-                    let v = req(0, &mut console);
+                    let v = req(0, &mut wing);
                     pending_requests += v;
                     if v == 0 {
                         println!("Schema retrieval complete. {} records received.", node_id_to_def.read().unwrap().len());
