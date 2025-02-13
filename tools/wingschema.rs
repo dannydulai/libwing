@@ -82,7 +82,6 @@ fn print_node(json_file: &mut File, rust_file: &mut Vec<u8>, node_id: i32, recur
         }
         if n.parent_id == 0 { fullname = "/".to_owned() + &fullname[..]; }
         json.insert("fullname", fullname.clone()).unwrap();
-        println!("{}: {}, {}", node_id, fullname, n.index);
 
         writeln!(json_file, "{}", jzon::stringify(json)).unwrap();
 
