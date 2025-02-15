@@ -97,10 +97,6 @@ int                wing_node_definition_get_string_enum_long_item (const Respons
 
 // Utility functions
 int                wing_name_to_id                                (const char* name, int32_t* out_id);
-const char*        wing_id_to_name                                (int32_t id);
-int                wing_id_to_parent                              (int32_t id, int32_t* out_parent);
-WingNodeType       wing_id_to_type                                (int32_t id);
-int                wing_parse_id                                  (const char* name, const char** out_name, int32_t* out_id);
 
     // you must call this to free the memory of any string returned by the library
 void               wing_string_destroy                            (const char* handle);

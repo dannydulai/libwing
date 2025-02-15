@@ -300,66 +300,22 @@ pub extern "C" fn wing_name_to_id(name: *const c_char, out_id: *mut i32) -> c_in
     }
 }
 
-// #[no_mangle]
-// pub extern "C" fn wing_id_to_name(id: i32) -> *const c_char {
-//     let name = WingConsole::id_to_name(id);
-//     if let Some(name) = name {
-//         CString::new(name).unwrap().into_raw()
-//     } else {
-//         ptr::null()
-//     }
-// }
-//
-// #[no_mangle]
-// pub extern "C" fn wing_parse_id(name: *const c_char, out_name: *mut *const c_char, out_id: *mut i32) -> c_int {
-//     unsafe {
-//         if let Ok(name_str) = CStr::from_ptr(name).to_str() {
-//             if let Some((parsed_name, parsed_id)) = WingConsole::parse_id(name_str, true) {
-//                 *out_name = CString::new(parsed_name).unwrap().into_raw();
-//                 *out_id = parsed_id;
-//                 1
-//             } else {
-//                 0
-//             }
-//         } else {
-//             0
-//         }
-//     }
-// }
-//
-// #[no_mangle]
-// pub extern "C" fn wing_id_to_parent(id: i32, out_parent: *mut i32) -> c_int {
-//     if let Some(parent) = WingConsole::id_to_parent(id) {
-//         unsafe {
-//             *out_parent = parent;
-//         }
-//         1
-//     } else {
-//         0
-//     }
-// }
-//
-// #[no_mangle]
-// pub extern "C" fn wing_id_to_type(id: i32) -> NodeType {
-//     WingConsole::id_to_type(id).unwrap_or(NodeType::Node)
-// }
-//
-// #[no_mangle]
-// pub extern "C" fn wing_node_definition_get_parent_id(def: *const ResponseHandle) -> i32 {
-//     unsafe {
-//         if let WingResponse::NodeDef(def) = &(*def).response {
-//             def.parent_id
-//         } else {
-//             panic!("Invalid response type");
-//         }
-//     }
-// }
-
 #[no_mangle]
 pub extern "C" fn wing_node_definition_get_id(def: *const ResponseHandle) -> i32 {
     unsafe {
         if let WingResponse::NodeDef(def) = &(*def).response {
             def.id
+        } else {
+            panic!("Invalid response type");
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wing_node_definition_get_parent_id(def: *const ResponseHandle) -> i32 {
+    unsafe {
+        if let WingResponse::NodeDef(def) = &(*def).response {
+            def.parent_id
         } else {
             panic!("Invalid response type");
         }
