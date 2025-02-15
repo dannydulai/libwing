@@ -22,21 +22,21 @@ The Wing console exposes its functionality through a tree of nodes. Each node ha
 ### Discovery
 To find Wing consoles on your network:
 
-```cpp
+```rust
 auto discovered = WingConsole::scan();
 if (!discovered.empty()) {
     // Found at least one console
-    auto firstConsole = discovered[0];
-    std::cout << "Found console: " << firstConsole.name 
-              << " at IP: " << firstConsole.ip << std::endl;
+    auto firstWing = discovered[0];
+    std::cout << "Found Wing: " << firstWing.name 
+              << " at IP: " << firstWing.ip << std::endl;
 }
 ```
 
 ### Connecting
-Once you have a console's IP address, you can connect to it:
+Once you have a Wing's IP address, you can connect to it:
 
-```cpp
-WingConsole console = WingConsole::connect("192.168.1.100");
+```rust
+WingConsole wing = WingConsole::connect("192.168.1.100");
 ```
 
 ### Communication Model
@@ -53,15 +53,15 @@ The Wing console uses an asynchronous communication model:
 Register callbacks to handle different types of messages. These callbacks will
 be called on the thread from which the `read()` method was called.
 
-```cpp
+```rust
 // Called when a node definition is received
-console.onNodeDefinition = [](NodeDefinition node) {
+wing.onNodeDefinition = [](NodeDefinition node) {
     std::cout << "Got definition for node: " << node.name << std::endl;
 };
 
 // Called when node data/values are received, in response to a request or
-// unsolicited due to manipulation of the console
-console.onNodeData = [](uint32_t id, NodeData data) {
+// unsolicited due to manipulation of the Wing
+wing.onNodeData = [](uint32_t id, NodeData data) {
     std::cout
         << "Node "
         << NodeDefinition::nodeIdToName(id)
@@ -74,7 +74,7 @@ console.onNodeData = [](uint32_t id, NodeData data) {
 
 // Called when a request is complete. You will get one of these for each time
 // you call `requestNodeDefinition()` or `requestNodeData()`.
-console.onRequestEnd = []() {
+wing.onRequestEnd = []() {
     std::cout << "Request completed" << std::endl;
 };
 ```
@@ -83,11 +83,11 @@ console.onRequestEnd = []() {
 
 Nodes are identified by numeric IDs. You can convert between IDs and names:
 
-```cpp
+```rust
 uint32_t id = WingConsole::nodeNameToId(name);  // Returns the ID for this node
 ```
 and
-```cpp
+```rust
 std::string name = WingConsole::nodeIdToName(id);  // Returns the ID for this node
 ```
 
@@ -101,21 +101,21 @@ rows in `wing-schema.cpp`.
 
 To start receiving data:
 
-```cpp
-console.read();  // This blocks and processes incoming messages
+```rust
+wing.read();  // This blocks and processes incoming messages
 ```
 
-You can request data from the console:
+You can request data from the Wing:
 
-```cpp
+```rust
 // Request a node definition -- this is the schema of the node.
 // You can pass zero (0) to get the root nodes.
-console.requestNodeDefinition(id);
+wing.requestNodeDefinition(id);
 ```
 
-```cpp
+```rust
 // Request a node's data -- this is the parameter value.
-console.requestNodeData(id);
+wing.requestNodeData(id);
 ```
 
 These methods can be called on any thread.
@@ -124,7 +124,7 @@ These methods can be called on any thread.
 
 To change values on the console:
 
-```cpp
+```rust
 // Set values by node ID
 console.setString(nodeId, "value");
 console.setFloat(nodeId, 0.5f);

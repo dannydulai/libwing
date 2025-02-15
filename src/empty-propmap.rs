@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use crate::node::WingNodeDef;
+
 lazy_static::lazy_static! {
-    pub static ref ID_TO_DATA: HashMap<i32, (String, i32, u8)> = HashMap::new();
+    pub static ref NAME_TO_DEF: HashMap<String, WingNodeDef> = HashMap::new();
 }

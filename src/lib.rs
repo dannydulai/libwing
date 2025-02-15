@@ -27,5 +27,5 @@ pub enum Error {
 pub enum WingResponse {
     RequestEnd,
     NodeDef(WingNodeDef),
-    NodeData(i32, WingNodeData),
+    NodeData(i8, i32, WingNodeData),
 }

@@ -44,7 +44,7 @@ See [libwing.h](libwing.h) for the complete C API.
 ## [propmap.rs](src/propmap.rs), [empty-propmap.rs](src/empty-propmap.rs), and [propmap.jsonl](propmap.jsonl)
 
 This library includes a very large mapping of property names, IDs, types, and
-parent IDs in `propmap.rs`. It's over 35k entries and adds about 1MB to your
+parent IDs in `propmap.rs`. It's over 78,000 entries and adds about 1MB to your
 binary. It will also use a few MB of RAM when loaded.
 
 The Wing's Native protocol only really deals with IDs, so if you ever want to
@@ -63,8 +63,35 @@ break some of the utility of the utility programs if you do this. You can also
 use `empty-propmap.rs` if you corrupt your `propmaprs.rs` somehow.
 
 The default `propmap.rs` and `propmap.jsonl` included in this repo was
-generated from a Wing Compact running 3.0.5 firmware and contains 35,511
-entries.
+generated from a Wing Compact running 3.0.5 firmware and contains over 78,000
+entries. **wingschema** was run with `-modify` to get the most complete schema
+possible (see below).
+
+### The dynamic nature of the Wing's properties, especially FX slots
+
+The listing of the properties is dynamic in nature. For example, if you
+have an empty FX slot 1, the children of /fx/1 will be limited to just a few
+properties. But if you load an effect into that slot, now the
+children of /fx/1 will be much larger. For example, /fx/1/trim only exists if
+"External" is loaded into an FX slot.
+
+**wingschema** has a parameter you can pass called `-modify` that will allow it
+to cycle through all the models in each slot and request the full schema. This
+will give you a more complete schema of the Wing's properties. I only know of
+the property trees with a property called `mdl` right now, so the FX slots, the
+GATE slots, EQ slots, etc... are tested in this way. If you find other
+properties that are dynamic in nature, please post a Github issue or offer up a
+pull request to **wingschema** to fix this.
+
+Note that you will mess up your Wing properties if you run with `**wingschema**
+-modify`. Do a snapshot save of your Wing before running `**wingschema**
+-modify` and restore it afterwards.
+
+If you don't pass `-modify`, **wingschema** will only request the properties as
+they are seen the time of the request.
+
+If you find that your property is missing, load it up and run **wingschema**
+again or use the `-modify` flag to get them all.
 
 
 ## wingprop utility
@@ -80,9 +107,9 @@ It also has an option to output as JSON.
 ## wingschema utility
 
 **wingschema** will request every property schema and save them to two files.
-As of firmware 3.0.5, there are 35,511 entries. See above about more
+As of firmware 3.0.5, there are over 78,000 entries. See above about more
 information about the two files as well as how you can use this to update the
-proper map in the library.
+proper map in the library. Also, see above about the `-modify` flag.
 
 ## wingmon utility
 
@@ -101,7 +128,7 @@ There are 3 protocols available for controlling the Wing:
 - The [OSC](https://en.wikipedia.org/wiki/Open_Sound_Control) protocol
 - The [Discovery protocol](Discovery.md)
 
-The Native and OSC protocols are documented
+The Native and OSC protocols (and much much more) are documented
 [here](https://cdn.mediavalet.com/aunsw/musictribe/mzolJdOzu0WZG59pX2LDkA/drJQVBUjakq76Xn2GcaT0Q/Original/WING%20Remote%20Protocols%20v3.0.5.pdf)
 (as of Wing firmware v3.0.5) by [Patrick-Gilles Maillot](https://github.com/pmaillot). He's also created a few other utilites for the Wing.
 A copy of that document is checked in to

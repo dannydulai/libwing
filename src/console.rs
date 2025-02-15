@@ -3,21 +3,21 @@ use std::net::{TcpStream, UdpSocket};
 use std::io::{Read, Write};
 use std::time::Duration;
 
-use crate::{Result, Error};
-use crate::node::{WingNodeDef, WingNodeData, NodeType, NodeUnit, StringEnumItem, FloatEnumItem};
-use crate::WingResponse;
-
-use crate::propmap::ID_TO_DATA;
+use crate::{Result, Error, WingResponse};
+use crate::node::{WingNodeDef, WingNodeData};
+use crate::propmap::NAME_TO_DEF;
 
 lazy_static::lazy_static! {
-    static ref NAME_TO_ID: HashMap<&'static str, i32> = {
-        let mut name2id = HashMap::<&'static str, i32>::new();
-        if name2id.is_empty() {
-            for (id, (name, _, _)) in ID_TO_DATA.iter() {
-                name2id.insert(name, *id);
+    static ref ID_TO_NAME: HashMap<i32, Vec<String>> = {
+        let mut id2name = HashMap::<i32, Vec<String>>::new();
+        if id2name.is_empty() {
+            for (fullname, def) in NAME_TO_DEF.iter() {
+                id2name.get_mut(&def.id).map(|x| x.push(fullname.to_string())).unwrap_or_else(|| {
+                    id2name.insert(def.id, vec![fullname.to_string()]);
+                });
             }
         }
-        name2id
+        id2name
     };
 }
 
@@ -82,7 +82,20 @@ impl WingConsole {
         Ok(results)
     }
 
-    pub fn connect(ip: &str) -> Result<Self> {
+    pub fn connect(host_or_ip: Option<&str>) -> Result<Self> {
+        let ip =
+            if let Some(i) = host_or_ip {
+                i.to_string()
+            } else {
+                let devices = WingConsole::scan(true)?;
+                if !devices.is_empty() {
+                    devices[0].ip.clone()
+                } else {
+                    eprintln!("No Wing devices found!");
+                    std::process::exit(1);
+                }
+            };
+
         let mut stream = TcpStream::connect((ip, 2222))?;
         stream.set_nonblocking(true)?;
         stream.set_nodelay(true)?;
@@ -103,47 +116,48 @@ impl WingConsole {
 
     pub fn read(&mut self) -> Result<WingResponse> {
         loop {
-            let (ch, cmd) = self.decode_next()?;
+            let mut raw = Vec::new(); 
+            let (ch, cmd) = self.decode_next(&mut raw)?;
             //println!("Channel: {}, Command: {:X}", ch, cmd);
             if cmd <= 0x3f {
                 let v = cmd as i32;
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_i32(v)));
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_i32(v)));
             } else if cmd <= 0x7f {
                 let v = cmd - 0x40 + 1;
                 println!("REQUEST: NODE INDEX: {}", v);
             } else if cmd <= 0xbf {
                 let len = cmd - 0x80 + 1;
-                let v = self.read_string(ch, len as usize)?;
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
+                let v = self.read_string(ch, len as usize, &mut raw)?;
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd <= 0xcf {
                 let len = cmd - 0xc0 + 1;
-                let v = self.read_string(ch, len as usize)?;
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
+                let v = self.read_string(ch, len as usize, &mut raw)?;
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd == 0xd0 {
                 let v = String::new();
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd == 0xd1 {
-                let len = self.read_u8(ch)? + 1;
-                let v = self.read_string(ch, len as usize)?;
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_string(v)));
+                let len = self.read_u8(ch, &mut raw)? + 1;
+                let v = self.read_string(ch, len as usize, &mut raw)?;
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_string(v)));
             } else if cmd == 0xd2 {
-                let v = self.read_u16(ch)? + 1;
+                let v = self.read_u16(ch, &mut raw)? + 1;
                 println!("REQUEST: NODE INDEX: {}", v);
             } else if cmd == 0xd3 {
-                let v = self.read_i16(ch)?;
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_i16(v)));
+                let v = self.read_i16(ch, &mut raw)?;
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_i16(v)));
             } else if cmd == 0xd4 {
-                let v = self.read_i32(ch)?;
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_i32(v)));
+                let v = self.read_i32(ch, &mut raw)?;
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_i32(v)));
             } else if cmd == 0xd5 || cmd == 0xd6 {
-                let v = self.read_f(ch)?;
-                return Ok(WingResponse::NodeData(self.current_node_id, WingNodeData::with_float(v)));
+                let v = self.read_f(ch, &mut raw)?;
+                return Ok(WingResponse::NodeData(self.rx_current_channel, self.current_node_id, WingNodeData::with_float(v)));
             } else if cmd == 0xd7 {
-                self.current_node_id = self.read_i32(ch)?;
+                self.current_node_id = self.read_i32(ch, &mut raw)?;
             } else if cmd == 0xd8 {
                 println!("REQUEST: CLICK");
             } else if cmd == 0xd9 {
-                let v = self.read_i8(ch)?;
+                let v = self.read_i8(ch, &mut raw)?;
                 println!("REQUEST: STEP: {}", v);
             } else if cmd == 0xda {
                 println!("REQUEST: TREE: GOTO ROOT");
@@ -156,144 +170,34 @@ impl WingConsole {
             } else if cmd == 0xde {
                 return Ok(WingResponse::RequestEnd);
             } else if cmd == 0xdf {
-                let def_len = self.read_u16(ch)? as u32;
-                if def_len == 0 { let _ = self.read_u32(ch)?; }
-
-                let parent_id     = self.read_i32(ch)?;
-                let id            = self.read_i32(ch)?;
-                let index         = self.read_u16(ch)?;
-                let name_len      = self.read_u8(ch)?;
-                let name          = self.read_string(ch, name_len as usize)?;
-                let long_name_len = self.read_u8(ch)?;
-                let long_name     = self.read_string(ch, long_name_len as usize)?;
-
-                let flags = self.read_u16(ch)?;
-
-                let node_type = match (flags >> 4) & 0x0F {
-                    0 => NodeType::Node,
-                    1 => NodeType::LinearFloat,
-                    2 => NodeType::LogarithmicFloat,
-                    3 => NodeType::FaderLevel,
-                    4 => NodeType::Integer,
-                    5 => NodeType::StringEnum,
-                    6 => NodeType::FloatEnum,
-                    7 => NodeType::String,
-                    _ => NodeType::Node,
-                };
-
-                let unit = match flags & 0x0F {
-                    0 => NodeUnit::None,
-                    1 => NodeUnit::Db,
-                    2 => NodeUnit::Percent,
-                    3 => NodeUnit::Milliseconds,
-                    4 => NodeUnit::Hertz,
-                    5 => NodeUnit::Meters,
-                    6 => NodeUnit::Seconds,
-                    7 => NodeUnit::Octaves,
-                    _ => NodeUnit::None,
-                };
-
-                let read_only = ((flags >> 8) & 0x01) != 0;
-
-                let mut min_float      = Option::None;
-                let mut max_float      = Option::None;
-                let mut steps          = Option::None;
-                let mut min_int        = Option::None;
-                let mut max_int        = Option::None;
-                let mut max_string_len = Option::None;
-                let mut string_enum    = Option::None;
-                let mut float_enum     = Option::None;
-
-                match node_type {
-                    NodeType::Node | NodeType::FaderLevel => { }
-                    NodeType::String => {
-                        max_string_len = Some(self.read_u16(ch)?);
-                    }
-                    NodeType::LinearFloat | 
-                    NodeType::LogarithmicFloat => {
-                        min_float = Some(self.read_f(ch)?);
-                        max_float = Some(self.read_f(ch)?);
-                        steps = Some(self.read_i32(ch)?);
-                    }
-                    NodeType::Integer => {
-                        min_int = Some(self.read_i32(ch)?);
-                        max_int = Some(self.read_i32(ch)?);
-                    }
-                    NodeType::StringEnum => {
-                        let num = self.read_u16(ch)?; 
-                        for _ in 0..num {
-                            let item_len = self.read_u8(ch)? as usize;
-                            let item = self.read_string(ch, item_len)?;
-                            let long_item_len = self.read_u8(ch)? as usize;
-                            let long_item = self.read_string(ch, long_item_len)?;
-                            if string_enum.is_none() {
-                                string_enum = Some(Vec::new());
-                            }
-                            string_enum.as_mut().unwrap().push(StringEnumItem {
-                                item,
-                                long_item,
-                            });
-                        }
-                    }
-                    NodeType::FloatEnum => {
-                        let num = self.read_u16(ch)?; 
-                        for _ in 0..num {
-                            let item = self.read_f(ch)?;
-                            let long_item_len = self.read_u8(ch)? as usize;
-                            let long_item = self.read_string(ch, long_item_len)?;
-                            if float_enum.is_none() {
-                                float_enum = Some(Vec::new());
-                            }
-                            float_enum.as_mut().unwrap().push(FloatEnumItem {
-                                item,
-                                long_item,
-                            });
-                        }
-                    }
-                }
-
-                let def = WingNodeDef {
-                    id,
-                    parent_id,
-                    index,
-                    name,
-                    long_name,
-                    node_type,
-                    unit,
-                    read_only,
-                    min_float,
-                    max_float,
-                    steps,
-                    min_int,
-                    max_int,
-                    max_string_len,
-                    string_enum,
-                    float_enum
-                };
-                return Ok(WingResponse::NodeDef(def));
+                let def_len = self.read_u16(ch, &mut raw)? as u32;
+                if def_len == 0 { let _ = self.read_u32(ch, &mut raw)?; }
+                raw.clear();
+                for _ in 0..def_len { self.decode_next(&mut raw)?; } 
+                return Ok(WingResponse::NodeDef(WingNodeDef::from_bytes(&raw)));
             }
         }
     }
 
-    fn read_i8(&mut self, _ch:i8) -> Result<i8> {
-        Ok(self.decode_next()?.1 as i8)
+    fn read_i8(&mut self, _ch:i8, raw: &mut Vec::<u8>) -> Result<i8> {
+        Ok(self.decode_next(raw)?.1 as i8)
     }
-    fn read_u8(&mut self, _ch:i8) -> Result<u8> {
-        Ok(self.decode_next()?.1)
+    fn read_u8(&mut self, _ch:i8, raw: &mut Vec::<u8>) -> Result<u8> {
+        Ok(self.decode_next(raw)?.1)
     }
-    fn read_u16(&mut self, _ch:i8) -> Result<u16> {
-        let a = self.decode_next()?;
-        let b = self.decode_next()?;
+    fn read_u16(&mut self, _ch:i8, raw: &mut Vec::<u8>) -> Result<u16> {
+        let a = self.decode_next(raw)?;
+        let b = self.decode_next(raw)?;
         Ok(((a.1 as u16) << 8) | b.1 as u16)
     }
-    fn read_i16(&mut self, ch:i8) -> Result<i16> {
-        Ok(self.read_u16(ch)? as i16)
+    fn read_i16(&mut self, ch:i8, raw: &mut Vec::<u8>) -> Result<i16> {
+        Ok(self.read_u16(ch, raw)? as i16)
     }
-    fn read_u32(&mut self, _ch:i8) -> Result<u32> {
-        let a = self.decode_next()?;
-        let b = self.decode_next()?;
-        let c = self.decode_next()?;
-        let d = self.decode_next()?;
+    fn read_u32(&mut self, _ch:i8, raw: &mut Vec::<u8>) -> Result<u32> {
+        let a = self.decode_next(raw)?;
+        let b = self.decode_next(raw)?;
+        let c = self.decode_next(raw)?;
+        let d = self.decode_next(raw)?;
         Ok(
             ((a.1 as u32) << 24) |
             ((b.1 as u32) << 16) |
@@ -301,22 +205,22 @@ impl WingConsole {
             d.1 as u32
             )
     }
-    fn read_i32(&mut self, ch:i8) -> Result<i32> {
-        Ok(self.read_u32(ch)? as i32)
+    fn read_i32(&mut self, ch:i8, raw: &mut Vec::<u8>) -> Result<i32> {
+        Ok(self.read_u32(ch, raw)? as i32)
     }
 
-    fn read_string(&mut self, _ch:i8, len:usize) -> Result<String> {
+    fn read_string(&mut self, _ch:i8, len:usize, raw: &mut Vec::<u8>) -> Result<String> {
         // define u8 array of size len and fill it with decode_next
-        let buf = (0..len).map(|_| self.decode_next().map(|(_, v)| v)).collect::<Result<Vec<u8>>>()?;
+        let buf = (0..len).map(|_| self.decode_next(raw).map(|(_, v)| v)).collect::<Result<Vec<u8>>>()?;
         // convert u8 array to string
         String::from_utf8(buf).map_err(|_| Error::InvalidData)
     }
 
-    fn read_f(&mut self, _ch:i8) -> Result<f32> {
-        let a = self.decode_next()?;
-        let b = self.decode_next()?;
-        let c = self.decode_next()?;
-        let d = self.decode_next()?;
+    fn read_f(&mut self, _ch:i8, raw: &mut Vec::<u8>) -> Result<f32> {
+        let a = self.decode_next(raw)?;
+        let b = self.decode_next(raw)?;
+        let c = self.decode_next(raw)?;
+        let d = self.decode_next(raw)?;
         let val = ((a.1 as u32) << 24) |
             ((b.1 as u32) << 16) |
             ((c.1 as u32) << 8) |
@@ -331,11 +235,12 @@ impl WingConsole {
         }
     }
 
-    fn decode_next(&mut self) -> Result<(i8, u8)> {
+    fn decode_next(&mut self, raw: &mut Vec::<u8>) -> Result<(i8, u8)> {
         if self.rx_has_in_pipe.is_some() {
             // println!("has in pipe");
             let value = self.rx_has_in_pipe.unwrap();
             self.rx_has_in_pipe = None;
+            raw.push(value);
             return Ok((self.rx_current_channel, value));
         }
 
@@ -374,6 +279,7 @@ impl WingConsole {
                 if byte == 0xdf {
                     self.rx_esc = true;
                 } else {
+                    raw.push(byte);
                     break Ok((self.rx_current_channel, byte))
                 }
             } else if byte == 0xdf {
@@ -381,14 +287,17 @@ impl WingConsole {
             } else {
                 self.rx_esc = false;
                 if byte == 0xde {
+                    raw.push(0xdf);
                     break Ok((self.rx_current_channel, 0xdf))
                 } else if (0xd0..0xde).contains(&byte) {
                     self.rx_current_channel = (byte - 0xd0) as i8;
                     continue;
                 } else if self.rx_current_channel >= 0 {
                     self.rx_has_in_pipe = Some(byte);
+                    raw.push(0xdf);
                     break Ok((self.rx_current_channel, 0xdf))
                 } else {
+                    raw.push(byte);
                     break Ok((self.rx_current_channel, byte))
                 }
             }
@@ -502,55 +411,24 @@ impl WingConsole {
         if let Ok(num) = fullname.parse::<i32>() {
             Some(num)
         } else {
-            NAME_TO_ID.get(fullname).copied()
+            NAME_TO_DEF.get(fullname).map(|x| x.id)
         }
     }
-
-    pub fn id_to_name(id: i32) -> Option<&'static str> {
-        ID_TO_DATA.get(&id).map(|x| &*x.0)
+    pub fn name_to_def(fullname: &str) -> Option<&WingNodeDef> {
+        NAME_TO_DEF.get(fullname)
     }
 
-    pub fn id_to_parent(id: i32) -> Option<i32> {
-        ID_TO_DATA.get(&id).map(|x| x.1)
-    }
-
-    pub fn id_to_type(id: i32) -> Option<NodeType> {
-        let ty = ID_TO_DATA.get(&id).map(|x| x.2);
-        match ty {
-            Some(0) => Some(NodeType::Node),
-            Some(1) => Some(NodeType::LinearFloat),
-            Some(2) => Some(NodeType::LogarithmicFloat),
-            Some(3) => Some(NodeType::FaderLevel),
-            Some(4) => Some(NodeType::Integer),
-            Some(5) => Some(NodeType::StringEnum),
-            Some(6) => Some(NodeType::FloatEnum),
-            Some(7) => Some(NodeType::String),
-            _ => None,
-        }
-    }
-
-    pub fn parse_id(name: &str, must_have_both: bool) -> Option<(String, i32)> {
-        let propid;
-        let propname;
-
-        if let Ok(id) = name.parse::<i32>() {
-            propid = id;
-            if let Some(name) = WingConsole::id_to_name(id) {
-                propname = name.to_string(); 
-            } else if must_have_both {
-                return None;
-            } else {
-                propname = format!("<Unknown:{}>", id);
-            }
-        } else {
-            propname = name.to_string();
-            if let Some(id) = WingConsole::name_to_id(name) {
-                propid = id;
-            } else {
-                return None;
-            }
-        }
-        Some((propname, propid))
+    pub fn id_to_defs(id: i32) -> Option<Vec<(String, WingNodeDef)>> {
+        ID_TO_NAME.get(&id)
+            .cloned()
+            .map(|names|
+                names
+                .iter()
+                .map(|n| (n, NAME_TO_DEF.get(n)))
+                .filter(|x| x.1.is_some())
+                .map(|x| (x.0, x.1.unwrap()))
+                .map(|(n, v)| (n.clone(), v.clone())
+                ).collect())
     }
 }
 
