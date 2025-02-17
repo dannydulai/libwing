@@ -7,7 +7,6 @@
 extern "C" {
 #endif
 
-// Opaque handle types
 typedef struct WingDiscoveryInfo WingDiscoveryInfo;
 typedef struct WingConsole WingConsole;
 typedef struct Response Response;
@@ -41,46 +40,41 @@ typedef enum {
     WING_NODE_UNIT_OCTAVES = 7
 } WingNodeUnit;
 
-// Discovery functions
-WingDiscoveryInfo* wing_discover_scan                             (int stop_on_first);
-void               wing_discover_destroy                          (WingDiscoveryInfo* handle);
+WingDiscoveryInfo* wing_discover_scan                             (int stop_on_first); // Return value must be freed by wing_discover_destroy()
 int                wing_discover_count                            (const WingDiscoveryInfo* handle);
-const char*        wing_discover_get_ip                           (const WingDiscoveryInfo* handle, int index);
-const char*        wing_discover_get_name                         (const WingDiscoveryInfo* handle, int index);
-const char*        wing_discover_get_model                        (const WingDiscoveryInfo* handle, int index);
-const char*        wing_discover_get_serial                       (const WingDiscoveryInfo* handle, int index);
-const char*        wing_discover_get_firmware                     (const WingDiscoveryInfo* handle, int index);
+const char*        wing_discover_get_ip                           (const WingDiscoveryInfo* handle, int index); // Return value must be free by wing_string_destroy()
+const char*        wing_discover_get_name                         (const WingDiscoveryInfo* handle, int index); // Return value must be free by wing_string_destroy()
+const char*        wing_discover_get_model                        (const WingDiscoveryInfo* handle, int index); // Return value must be free by wing_string_destroy()
+const char*        wing_discover_get_serial                       (const WingDiscoveryInfo* handle, int index); // Return value must be free by wing_string_destroy()
+const char*        wing_discover_get_firmware                     (const WingDiscoveryInfo* handle, int index); // Return value must be free by wing_string_destroy()
+void               wing_discover_destroy                          (WingDiscoveryInfo* handle);
 
-// Console functions
-WingConsole*       wing_console_connect                           (const char* ip);
-void               wing_console_destroy                           (WingConsole* handle);
-Response*          wing_console_read                              (WingConsole* handle);
+WingConsole*       wing_console_connect                           (const char* ip); // Return value must be freed by wing_console_destroy()
+Response*          wing_console_read                              (WingConsole* handle); // Return value must be freed by wing_response_destroy()
 int                wing_console_set_string                        (WingConsole* handle, int32_t id, const char* value);
 int                wing_console_set_float                         (WingConsole* handle, int32_t id, float value);
 int                wing_console_set_int                           (WingConsole* handle, int32_t id, int value);
 int                wing_console_request_node_definition           (WingConsole* handle, int32_t id);
 int                wing_console_request_node_data                 (WingConsole* handle, int32_t id);
+void               wing_console_destroy                           (WingConsole* handle);
 
-// Response functions
-void               wing_response_destroy                          (Response* handle);
 WingResponseType   wing_response_get_type                         (const Response* handle);
+void               wing_response_destroy                          (Response* handle);
 
-// Node data functions
-const char*        wing_node_data_get_string                      (const Response* handle);
+const char*        wing_node_data_get_string                      (const Response* handle); // Return value must be free by wing_string_destroy()
 float              wing_node_data_get_float                       (const Response* handle);
 int                wing_node_data_get_int                         (const Response* handle);
 int                wing_node_data_has_string                      (const Response* handle);
 int                wing_node_data_has_float                       (const Response* handle);
 int                wing_node_data_has_int                         (const Response* handle);
 
-// Node definition functions
 int32_t            wing_node_definition_get_parent_id             (const Response* handle);
 int32_t            wing_node_definition_get_id                    (const Response* handle);
 uint16_t           wing_node_definition_get_index                 (const Response* handle);
 WingNodeType       wing_node_definition_get_type                  (const Response* handle);
 WingNodeUnit       wing_node_definition_get_unit                  (const Response* handle);
-const char*        wing_node_definition_get_name                  (const Response* handle);
-const char*        wing_node_definition_get_long_name             (const Response* handle);
+const char*        wing_node_definition_get_name                  (const Response* handle); // Return value must be free by wing_string_destroy()
+const char*        wing_node_definition_get_long_name             (const Response* handle); // Return value must be free by wing_string_destroy()
 int                wing_node_definition_is_read_only              (const Response* handle);
 int                wing_node_definition_get_min_float             (const Response* handle, float* ret);
 int                wing_node_definition_get_max_float             (const Response* handle, float* ret);
@@ -95,10 +89,9 @@ int                wing_node_definition_get_float_enum_long_item  (const Respons
 int                wing_node_definition_get_string_enum_item      (const Response* handle, int index, const char** ret);
 int                wing_node_definition_get_string_enum_long_item (const Response* handle, int index, const char** ret);
 
-// Utility functions
 int                wing_name_to_id                                (const char* name, int32_t* out_id);
 
-    // you must call this to free the memory of any string returned by the library
+// you must call this to free the memory of any string returned by the library
 void               wing_string_destroy                            (const char* handle);
 
 #ifdef __cplusplus
