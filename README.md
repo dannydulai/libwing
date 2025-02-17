@@ -64,52 +64,42 @@ use `empty-propmap.rs` if you corrupt your `propmaprs.rs` somehow.
 
 The default `propmap.rs` and `propmap.jsonl` included in this repo was
 generated from a Wing Compact running 3.0.5 firmware and contains over 78,000
-entries. **wingschema** was run with `-modify` to get the most complete schema
-possible (see below).
+entries.
 
 ### The dynamic nature of the Wing's properties, especially FX slots
 
 The listing of the properties is dynamic in nature. For example, if you
-have an empty FX slot 1, the children of /fx/1 will be limited to just a few
-properties. But if you load an effect into that slot, now the
-children of /fx/1 will be much larger. For example, /fx/1/trim only exists if
-"External" is loaded into an FX slot.
+have an FX1 with a type of "NONE", the children of /fx/1 will be limited to
+just a few properties. But if you load an effect into that FX, now the
+children of /fx/1 will be much larger. For example, setting the type to
+"EXTERNAL", /fx/1/trim will come into existance.
 
-**wingschema** has a parameter you can pass called `-modify` that will allow it
-to cycle through all the models in each slot and request the full schema. This
+**wingschema** cycle through all the types ("mdl" property) and request the full schema of that subtree. This
 will give you a more complete schema of the Wing's properties. I only know of
 the property trees with a property called `mdl` right now, so the FX slots, the
 GATE slots, EQ slots, etc... are tested in this way. If you find other
 properties that are dynamic in nature, please post a Github issue or offer up a
 pull request to **wingschema** to fix this.
 
-Note that you will mess up your Wing properties if you run with `**wingschema**
--modify`. Do a snapshot save of your Wing before running `**wingschema**
--modify` and restore it afterwards.
-
-If you don't pass `-modify`, **wingschema** will only request the properties as
-they are seen the time of the request.
-
-If you find that your property is missing, load it up and run **wingschema**
-again or use the `-modify` flag to get them all.
-
-
+**Note that you will mess up your Wing properties. Do a snapshot save of your
+Wing before running **wingschema** and restore it afterwards.
+**
 ## wingprop utility
 
-**wingprop** can be run with zero arguments to get help. It can do the following tasks:
+**wingprop** can do the following tasks:
 
 - get a property value
 - set a property value
 - get a property schema
 
-It also has an option to output as JSON.
+It also has an option to output as JSON (`-j`). Run `wingprop --help` to see the options.
 
 ## wingschema utility
 
 **wingschema** will request every property schema and save them to two files.
 As of firmware 3.0.5, there are over 78,000 entries. See above about more
 information about the two files as well as how you can use this to update the
-proper map in the library. Also, see above about the `-modify` flag.
+property map in the library. Run `wingschema --help` to see the options.
 
 ## wingmon utility
 
@@ -117,7 +107,7 @@ proper map in the library. Also, see above about the `-modify` flag.
 run it with no arguments (it'll discover the Wing on the network for you). Walk
 over to your Wing and touch a button or move a fader. You can also use the Wing
 apps to change properties. You'll see all the things that changed printed to
-the console.
+the console. Run `wingmon --help` to see the options.
 
 
 # Protocols
@@ -143,4 +133,3 @@ with the Wing.
 
 **libwing** does not implement the OSC protocol, but there are many other
 libraries available that do support OSC.
-

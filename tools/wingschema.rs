@@ -110,6 +110,30 @@ Usage: wingschema [-h host]
 "#);
     let mut host = None;
     if args.has_next() && args.next() == "-h" { host = Some(args.next()); }
+
+    // print out a message asking the user if it is ok to connect and get the schema, which WILL
+    // change the properties of the device, so you should have had a saved snapshot. ask them on
+    // the commandline and let them type "yes" to continue.
+    println!(r#"
+This tool will connect to a Behringer Wing Mixer on your network and get the
+schema of all properties. It will change the properties of the device in a
+destructive manner, so you should have had a saved snapshot you can restore
+after this process is complete.
+
+THIS IS A DESTRUCTIVE OPERATION AND CAN NOT BE UNDONE WITHOUT
+REINITIALIZING YOUR MIXER FROM SCRATCH.
+
+Do you have a backup snapshot you can restore after, and want to continue?
+"#);
+    print!("Enter 'yes' to continue: ");
+    std::io::stdout().flush().unwrap();
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim().to_lowercase() != "yes" {
+        println!("Aborting");
+        return Ok(());
+    }
+
     let mut wing = WingConsole::connect(host.as_deref())?;
 
     let mut json_file = std::fs::OpenOptions::new()

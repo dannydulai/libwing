@@ -101,8 +101,12 @@ pub extern "C" fn wing_discover_get_firmware(handle: *const WingDiscoveryInfoHan
 
 #[no_mangle]
 pub extern "C" fn wing_console_connect(ip: *const c_char) -> *mut WingConsoleHandle {
-    let ip = unsafe { CStr::from_ptr(ip).to_str() };
-    if let Ok(ip) = ip {
+    if ip.is_null() {
+        match WingConsole::connect(None) {
+            Ok(console) => Box::into_raw(Box::new(WingConsoleHandle { console })),
+            Err(_) => ptr::null_mut()
+        }
+    } else if let Ok(ip) = unsafe { CStr::from_ptr(ip).to_str() } {
         match WingConsole::connect(Some(ip)) {
             Ok(console) => Box::into_raw(Box::new(WingConsoleHandle { console })),
             Err(_) => ptr::null_mut()

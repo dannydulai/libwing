@@ -1,43 +1,3 @@
-# Libwing SDK Documentation
-
-Libwing is a C++ library for interfacing with Behringer Wing digital mixing
-consoles. It provides functionality for discovering Wing consoles on the
-network, connecting to them, reading/writing console parameters, and receiving
-any changes made on the mixer itself.
-
-There is a C wrapper for this library. It generally follows the C++ API. You
-can find it in `wing_c_api.h`.
-
-## Basic Concepts
-
-The Wing console exposes its functionality through a tree of nodes. Each node has:
-- A unique numeric ID
-- A hierarchical path name (like a filesystem path)
-- A type (string, float, integer, enum, etc.)
-- Optional min/max values and units
-- Read/write or read-only access
-
-## Getting Started
-
-### Discovery
-To find Wing consoles on your network:
-
-```rust
-auto discovered = WingConsole::scan();
-if (!discovered.empty()) {
-    // Found at least one console
-    auto firstWing = discovered[0];
-    std::cout << "Found Wing: " << firstWing.name 
-              << " at IP: " << firstWing.ip << std::endl;
-}
-```
-
-### Connecting
-Once you have a Wing's IP address, you can connect to it:
-
-```rust
-WingConsole wing = WingConsole::connect("192.168.1.100");
-```
 
 ### Communication Model
 
@@ -45,39 +5,6 @@ The Wing console uses an asynchronous communication model:
 
 1. You make requests using methods like `requestNodeDefinition()` and `requestNodeData()`
 2. Responses come back through callback functions you register
-3. The Wing device also sends unsolicited updates when values change on the mixer
-4. All messages are received through the `read()` method, which never returns
-
-### Callbacks
-
-Register callbacks to handle different types of messages. These callbacks will
-be called on the thread from which the `read()` method was called.
-
-```rust
-// Called when a node definition is received
-wing.onNodeDefinition = [](NodeDefinition node) {
-    std::cout << "Got definition for node: " << node.name << std::endl;
-};
-
-// Called when node data/values are received, in response to a request or
-// unsolicited due to manipulation of the Wing
-wing.onNodeData = [](uint32_t id, NodeData data) {
-    std::cout
-        << "Node "
-        << NodeDefinition::nodeIdToName(id)
-        << " ("
-        << id
-        << ") = "
-        << data.getString()
-        << std::endl;
-};
-
-// Called when a request is complete. You will get one of these for each time
-// you call `requestNodeDefinition()` or `requestNodeData()`.
-wing.onRequestEnd = []() {
-    std::cout << "Request completed" << std::endl;
-};
-```
 
 ### IDs and Names
 

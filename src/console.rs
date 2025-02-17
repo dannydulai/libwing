@@ -91,8 +91,7 @@ impl WingConsole {
                 if !devices.is_empty() {
                     devices[0].ip.clone()
                 } else {
-                    eprintln!("No Wing devices found!");
-                    std::process::exit(1);
+                    return Err(Error::DiscoveryError);
                 }
             };
 

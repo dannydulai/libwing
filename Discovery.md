@@ -43,3 +43,6 @@ are 192.168.1.23 / 255.255.255.0, then your broadcast would be 192.168.1.255.
 
 You can also send it to 255.255.255.255 as your router will most likely block
 your packet from leaving your local network.
+
+Note: when sending a packet using most operating system's networking APIs, you
+will need to set the flag on the socket to allow sending to broadcast IPs.
