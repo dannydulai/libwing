@@ -2,3 +2,6 @@ target
 .aider*
 .env
 .clangd
+.elixir_ls
+_build
+deps

@@ -1,0 +1,15 @@
+[package]
+name = "wing"
+version = "0.2.0"
+authors = ["HansiHE <hansihe@hansihe.com>"]
+edition = "2018"
+
+[lib]
+name = "wing"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36.1"
+bufstream = "0.1.4"
+libwing = { path = "../../" }

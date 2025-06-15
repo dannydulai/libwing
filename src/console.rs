@@ -8,6 +8,10 @@ use crate::{Result, Error, WingResponse};
 use crate::node::{WingNodeDef, WingNodeData};
 use crate::propmap::NAME_TO_DEF;
 
+use rustler::{NifStruct, NifTaggedEnum};
+
+
+#[derive(NifTaggedEnum)]
 pub enum Meter {
     Channel(u8),
     Aux(u8),
@@ -45,6 +49,8 @@ const RX_BUFFER_SIZE: usize = 2048;
 const DATA_KEEP_ALIVE_SECONDS: u64 = 7;
 const METERS_KEEP_ALIVE_SECONDS: u64 = 3;
 
+#[derive(NifStruct)]
+#[module = "Wing.DiscoveryInfo"]
 pub struct DiscoveryInfo {
     pub ip:       String,
     pub name:     String,

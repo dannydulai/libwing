@@ -53,8 +53,8 @@ impl WingMetersApp {
                 if let Ok((_, values)) = wing.read_meters() {
                     let mut vals = m.write().unwrap();
                     for i in 0..CHANNEL_COUNT.into() {
-                        vals[2*i]   = ((values[i*8 + 2] as f32 / 256.0 + 60.0) / 60.0).clamp(0.0, 1.0);
-                        vals[2*i+1] = ((values[i*8 + 3] as f32 / 256.0 + 60.0) / 60.0).clamp(0.0, 1.0);
+                        vals[2*i]   = ((values[i*8 + 0] as f32 / 256.0 + 60.0) / 60.0).clamp(0.0, 1.0);
+                        vals[2*i+1] = ((values[i*8 + 2] as f32 / 256.0 + 60.0) / 60.0).clamp(0.0, 1.0);
                     }
                 }
             }

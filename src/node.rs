@@ -1,4 +1,10 @@
+use rustler::{NifStruct, NifTaggedEnum};
+
+
+
+
 #[repr(C)]
+#[derive(NifTaggedEnum)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum NodeType {
     Node = 0,
@@ -12,6 +18,7 @@ pub enum NodeType {
 }
 
 #[repr(C)]
+#[derive(NifTaggedEnum)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum NodeUnit {
     None = 0,
@@ -23,17 +30,21 @@ pub enum NodeUnit {
     Seconds = 6,
     Octaves = 7,
 }
-
+#[derive(NifStruct)]
+#[module = "Wing.Node.StringEnumItem"]
 pub struct StringEnumItem {
     pub item: String,
     pub long_item: String,
 }
 
+#[derive(NifStruct)]
+#[module = "Wing.Node.FloatEnumItem"]
 pub struct FloatEnumItem {
     pub item: f32,
     pub long_item: String,
 }
-
+#[derive(NifStruct)]
+#[module = "Wing.Node.WingNodeDef"]
 pub struct WingNodeDef {
     pub id: i32,
     pub parent_id: i32,
@@ -239,6 +250,8 @@ impl Clone for WingNodeDef {
     }
 }
 
+#[derive(NifStruct)]
+#[module = "Wing.Node.WingNodeData"]
 pub struct WingNodeData {
     string_value: Option<String>,
     float_value: Option<f32>,
