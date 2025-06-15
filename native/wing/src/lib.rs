@@ -41,6 +41,15 @@ fn connect() -> WingArc {
 }
 
 #[rustler::nif(schedule = "DirtyCpu")]
+fn connect_with_host(host: Option<String>) -> WingArc {
+    ResourceArc::new(
+        ExWing {
+            wing: Mutex::new(WingConsole::connect(host.as_deref()).unwrap()),
+        }
+    )
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
 fn read_simple(wing_arc: WingArc) -> WingResponseSimple {
     let mut wing = wing_arc.wing.lock().unwrap();
     let wing: &mut WingConsole = &mut *wing;
@@ -118,6 +127,52 @@ fn start_meter_thread(host: Option<String>, pid_term: Term, meters_term: Term) -
         }
     });
     Ok(())
+}
+
+#[rustler::nif]
+fn start_property_thread(host: Option<String>, pid_term: Term, prop_id: i32) -> NifResult<()> {
+    let pid: LocalPid = pid_term.decode()?;
+    std::thread::spawn(move || {
+        let mut wing = match libwing::WingConsole::connect(host.as_deref()) {
+            Ok(w) => w,
+            Err(_) => return,
+        };
+        if wing.request_node_data(prop_id).is_err() {
+            return;
+        }
+        loop {
+            if let Ok(libwing::WingResponse::NodeData(id, data)) = wing.read() {
+                if id == prop_id {
+                    let mut env = OwnedEnv::new();
+                    let float_value = data.get_float();
+                    let msg = (
+                        rustler::types::atom::ok(),
+                        id,
+                        float_value
+                    );
+                    let _ = env.send_and_clear(&pid, |env| msg.encode(env));
+                }
+            }
+        }
+    });
+    Ok(())
+}
+
+#[rustler::nif]
+fn name_to_id(name: String) -> i32 {
+    libwing::WingConsole::name_to_id(&name).unwrap_or(-1)
+}
+
+#[rustler::nif]
+fn set_float(wing_arc: WingArc, id: i32, value: f32) -> Result<(), String> {
+    let mut wing = wing_arc.wing.lock().unwrap();
+    wing.set_float(id, value).map_err(|e| format!("{:?}", e))
+}
+
+#[rustler::nif]
+fn request_node_data(wing_arc: WingArc, id: i32) -> Result<(), String> {
+    let mut wing = wing_arc.wing.lock().unwrap();
+    wing.request_node_data(id).map_err(|e| format!("{:?}", e))
 }
 
 rustler::init!(

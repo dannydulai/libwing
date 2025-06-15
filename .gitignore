@@ -5,4 +5,5 @@ target
 .elixir_ls
 _build
 deps
-priv
+priv/native/**
+priv/native/libwing.so
