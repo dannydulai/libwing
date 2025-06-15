@@ -1,28 +1,41 @@
-# Wing.Fader API - Easy Volume Control
+# Wing.Fader API Documentation
 
-The `Wing.Fader` module provides a high-level, easy-to-use API for controlling and monitoring faders (volume controls) on Behringer Wing digital mixing consoles.
+**📖 The complete API documentation has been moved to the module documentation.**
 
-## Quick Start
+To view the full documentation, use:
 
 ```elixir
-# Connect to your Wing console
+# In IEx
+h Wing.Fader
+
+# Or generate HTML docs
+mix docs
+```
+
+## Quick Reference
+
+```elixir
+# Connect to console
 console = Wing.connect_with_host("192.168.1.100")
 
-# Set channel 1 fader to -10 dB
+# Set faders
 Wing.Fader.set_channel_fader(console, 1, -10.0)
-
-# Set main LR output to 0 dB
+Wing.Fader.set_bus_fader(console, 1, -5.0)
 Wing.Fader.set_main_fader(console, :lr, 0.0)
+Wing.Fader.set_main_fader(console, 1, -8.0)  # Matrix 1
 
-# Subscribe to fader changes
+# Subscribe to changes
 Wing.Fader.subscribe_channel_fader(console, 1, self())
+Wing.Fader.subscribe_main_fader(console, :lr, self())
 
 # Receive notifications
 receive do
-  {:fader_changed, :channel, 1, new_value} ->
-    IO.puts("Channel 1 is now at #{new_value} dB")
+  {:fader_changed, :channel, 1, value} -> IO.puts("Ch1: #{value} dB")
+  {:fader_changed, :main, :lr, value} -> IO.puts("LR: #{value} dB")
 end
 ```
+
+For complete documentation including examples, error handling, and implementation details, see the module documentation with `h Wing.Fader` in IEx.
 
 ## Features Implemented
 
