@@ -1,0 +1,19 @@
+defmodule Wing.MeterIntegrationTest do
+  use ExUnit.Case
+
+  @moduletag :integration
+  @host "10.10.14.85"
+
+  test "receives meter values from Wing console" do
+    {:ok, pid} = Wing.Meter.start_link(@host, forward_to: self())
+    # Wait for a few messages
+    assert_receive {:ok, values}, 4000
+    assert is_list(values)
+    assert Enum.all?(values, &is_integer/1)
+    # Optionally, receive a few more
+    assert_receive {:ok, more_values}, 4000
+    assert is_list(more_values)
+    # Stop the GenServer
+    GenServer.stop(pid)
+  end
+end

@@ -1,10 +1,10 @@
 use libwing::WingNodeData;
 use rustler::{ ResourceArc,NifTaggedEnum};
+use rustler::{Env, Term, NifResult, Encoder, OwnedEnv, LocalPid};
 
 use libwing::{WingConsole, WingResponse,WingNodeDef,DiscoveryInfo};
 
 use std::sync::Mutex;
-use rustler::{Env, Term};
 
 struct ExWing { pub wing: Mutex<WingConsole> }
 
@@ -73,6 +73,32 @@ fn scan() -> Vec<DiscoveryInfo> {
     }
 }
 
+#[rustler::nif]
+fn start_meter_thread(host: Option<String>, pid_term: Term) -> NifResult<()> {
+    let pid: LocalPid = pid_term.decode()?;
+    std::thread::spawn(move || {
+        let meters: Vec<libwing::Meter> = (0..16).map(libwing::Meter::Channel).collect();
+        let mut wing = match libwing::WingConsole::connect(host.as_deref()) {
+            Ok(w) => w,
+            Err(_) => return,
+        };
+        if wing.request_meter(&meters).is_err() {
+            return;
+        }
+        loop {
+            if let Ok((_id, values)) = wing.read_meters() {
+                let msg: Vec<i32> = values.iter().map(|v| *v as i32).collect();
+                let mut env = OwnedEnv::new();
+                env.send_and_clear(&pid, |env| (rustler::types::atom::ok(), msg).encode(env));
+            }
+        }
+    });
+    Ok(())
+}
 
-rustler::init!("Elixir.Wing", load = on_load);
+rustler::init!(
+    "Elixir.Wing",
+    [connect, read_simple, read, scan, start_meter_thread],
+    load = on_load
+);
 

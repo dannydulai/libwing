@@ -5,4 +5,5 @@ defmodule Wing do
   def scan(), do: :erlang.nif_error(:nif_not_loaded)
   def read(_pid), do: :erlang.nif_error(:nif_not_loaded)
   def read_simple(_pid), do: :erlang.nif_error(:nif_not_loaded)
+  def start_meter_thread(_host, _pid), do: :erlang.nif_error(:nif_not_loaded)
 end
