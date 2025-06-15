@@ -1,10 +1,19 @@
 use libwing::WingNodeData;
 use rustler::{ ResourceArc,NifTaggedEnum};
 use rustler::{Env, Term, NifResult, Encoder, OwnedEnv, LocalPid};
+use rustler::types::ListIterator;
 
 use libwing::{WingConsole, WingResponse,WingNodeDef,DiscoveryInfo};
 
 use std::sync::Mutex;
+
+rustler::atoms! {
+    channel,
+    mix,
+    aux,
+    main,
+    matrix
+}
 
 struct ExWing { pub wing: Mutex<WingConsole> }
 
@@ -74,10 +83,26 @@ fn scan() -> Vec<DiscoveryInfo> {
 }
 
 #[rustler::nif]
-fn start_meter_thread(host: Option<String>, pid_term: Term) -> NifResult<()> {
+fn start_meter_thread(host: Option<String>, pid_term: Term, meters_term: Term) -> NifResult<()> {
     let pid: LocalPid = pid_term.decode()?;
+    // Accept list of tuples: {atom, integer}
+    let list: Vec<(rustler::types::atom::Atom, u8)> = meters_term.decode()?;
+    let meters: Vec<libwing::Meter> = list.into_iter().map(|(kind, idx)| {
+        if kind == channel() {
+            libwing::Meter::Channel(idx)
+        } else if kind == mix() {
+            libwing::Meter::Bus(idx)
+        } else if kind == aux() {
+            libwing::Meter::Aux(idx)
+        } else if kind == main() {
+            libwing::Meter::Main(idx)
+        } else if kind == matrix() {
+            libwing::Meter::Matrix(idx)
+        } else {
+            libwing::Meter::Channel(1)
+        }
+    }).collect();
     std::thread::spawn(move || {
-        let meters: Vec<libwing::Meter> = (0..16).map(libwing::Meter::Channel).collect();
         let mut wing = match libwing::WingConsole::connect(host.as_deref()) {
             Ok(w) => w,
             Err(_) => return,

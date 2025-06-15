@@ -5,7 +5,8 @@ defmodule Wing.MeterIntegrationTest do
   @host "10.10.14.85"
 
   test "receives meter values from Wing console" do
-    {:ok, pid} = Wing.Meter.start_link(@host, forward_to: self())
+    meters = [{:channel, 1}, {:channel, 2}, {:mix, 1}]
+    {:ok, pid} = Wing.Meter.start_link(@host, meters: meters, forward_to: self())
     # Wait for a few messages
     assert_receive {:ok, values}, 4000
     assert is_list(values)
