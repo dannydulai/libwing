@@ -1,7 +1,6 @@
 use libwing::WingNodeData;
 use rustler::{ ResourceArc,NifTaggedEnum};
 use rustler::{Env, Term, NifResult, Encoder, OwnedEnv, LocalPid};
-use rustler::types::ListIterator;
 
 use libwing::{WingConsole, WingResponse,WingNodeDef,DiscoveryInfo};
 
@@ -28,7 +27,7 @@ pub enum WingResponseSimple {
 }
 
 fn on_load(env: Env, _info: Term) -> bool {
-    rustler::resource!(ExWing, env);
+    let _ = rustler::resource!(ExWing, env);
     true
 }
 
@@ -114,7 +113,7 @@ fn start_meter_thread(host: Option<String>, pid_term: Term, meters_term: Term) -
             if let Ok((_id, values)) = wing.read_meters() {
                 let msg: Vec<i32> = values.iter().map(|v| *v as i32).collect();
                 let mut env = OwnedEnv::new();
-                env.send_and_clear(&pid, |env| (rustler::types::atom::ok(), msg).encode(env));
+                let _ = env.send_and_clear(&pid, |env| (rustler::types::atom::ok(), msg).encode(env));
             }
         }
     });
@@ -123,7 +122,6 @@ fn start_meter_thread(host: Option<String>, pid_term: Term, meters_term: Term) -
 
 rustler::init!(
     "Elixir.Wing",
-    [connect, read_simple, read, scan, start_meter_thread],
     load = on_load
 );
 
