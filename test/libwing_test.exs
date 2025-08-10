@@ -1,7 +1,8 @@
 defmodule WingTest do
   use ExUnit.Case
 
-  @console_ip "10.10.14.85"
+  @moduletag :integration
+  @console_ip TestSupport.console_ip()
   @fader_prop "/ch/1/fdr"
   @test_value 0.0
 

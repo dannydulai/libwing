@@ -2,7 +2,7 @@ defmodule Wing.Fader do
   @moduledoc """
   High-level API for controlling and monitoring Wing console faders (volume controls).
 
-  This module provides a high-level, easy-to-use API for controlling and monitoring faders 
+  This module provides a high-level, easy-to-use API for controlling and monitoring faders
   (volume controls) on Behringer Wing digital mixing consoles.
 
   ## Quick Start
@@ -16,7 +16,7 @@ defmodule Wing.Fader do
       # Set channel 1 fader to -10 dB
       Wing.Fader.set_channel_fader(console, 1, -10.0)
 
-      # Set bus 1 fader to -5 dB  
+      # Set bus 1 fader to -5 dB
       Wing.Fader.set_bus_fader(console, 1, -5.0)
 
       # Set main LR output to 0 dB
@@ -30,7 +30,7 @@ defmodule Wing.Fader do
       # Subscribe to channel 1 fader changes
       Wing.Fader.subscribe_channel_fader(console, 1, self())
 
-      # Subscribe to main LR fader changes  
+      # Subscribe to main LR fader changes
       Wing.Fader.subscribe_main_fader(console, :lr, self())
 
       # Receive change notifications
@@ -45,7 +45,7 @@ defmodule Wing.Fader do
 
   ### Fader Control Functions
   - **Channel faders**: `set_channel_fader(console, channel, db_value)`
-  - **Bus faders**: `set_bus_fader(console, bus, db_value)` 
+  - **Bus faders**: `set_bus_fader(console, bus, db_value)`
   - **Main outputs**: `set_main_fader(console, :lr | :mono | matrix_num, db_value)`
 
   ### Real-time Subscription System
@@ -89,7 +89,7 @@ defmodule Wing.Fader do
   All functions return either `:ok` on success or `{:error, reason}` on failure:
 
       case Wing.Fader.set_channel_fader(console, 1, -10.0) do
-        :ok -> 
+        :ok ->
           IO.puts("Fader set successfully")
         {:error, reason} ->
           IO.puts("Failed to set fader: \#{reason}")
@@ -129,7 +129,7 @@ defmodule Wing.Fader do
 
       # Subscribe to multiple faders
       Wing.Fader.subscribe_channel_fader(console, 1)
-      Wing.Fader.subscribe_channel_fader(console, 2) 
+      Wing.Fader.subscribe_channel_fader(console, 2)
       Wing.Fader.subscribe_main_fader(console, :lr)
 
       # Process changes in a loop
@@ -163,7 +163,7 @@ defmodule Wing.Fader do
         end
 
         case result do
-          :ok -> 
+          :ok ->
             IO.puts("✓ \#{type} \#{id} set to \#{value} dB")
           {:error, reason} ->
             IO.puts("✗ Failed to set \#{type} \#{id}: \#{reason}")
@@ -222,7 +222,7 @@ defmodule Wing.Fader do
     property_path = "/ch/#{channel}/fdr"
     set_fader(console, property_path, value_db)
   end
-  
+
   def set_channel_fader(_console, invalid_channel, _value_db) do
     {:error, "Invalid channel number: #{inspect(invalid_channel)}. Expected positive integer"}
   end
@@ -240,7 +240,7 @@ defmodule Wing.Fader do
     property_path = "/bus/#{bus}/fdr"
     set_fader(console, property_path, value_db)
   end
-  
+
   def set_bus_fader(_console, invalid_bus, _value_db) do
     {:error, "Invalid bus number: #{inspect(invalid_bus)}. Expected positive integer"}
   end
@@ -266,7 +266,7 @@ defmodule Wing.Fader do
     property_path = "/mtx/#{matrix}/fdr"
     set_fader(console, property_path, value_db)
   end
-  
+
   def set_main_fader(_console, invalid, _value_db) do
     {:error, "Invalid main fader type: #{inspect(invalid)}. Expected :lr, :mono, or integer 1-6"}
   end
@@ -308,7 +308,7 @@ defmodule Wing.Fader do
   """
   @spec subscribe_main_fader(console(), main_type(), subscriber()) :: :ok | {:error, term()}
   def subscribe_main_fader(console, main_type, subscriber \\ self())
-  
+
   def subscribe_main_fader(console, :lr, subscriber) do
     subscribe_fader(console, "/main/1/fdr", {:main, :lr}, subscriber)
   end
@@ -343,9 +343,23 @@ defmodule Wing.Fader do
   # Private helper functions
 
   defp set_fader(console, property_path, value_db) do
-    with {:ok, prop_id} <- get_property_id(property_path),
-         {:ok, _} <- Wing.set_float(console, prop_id, value_db) do
-      :ok
+    with {:ok, prop_id} <- get_property_id(property_path) do
+      # Use Console GenServer if it's a pid, otherwise fall back to direct NIF
+      if is_pid(console) do
+        case Wing.Console.set_float(console, prop_id, value_db) do
+          :ok ->
+            # Force fetch of current value to emit notification (console may be edge-triggered)
+            ref = Wing.Console.get_console_ref(console)
+            _ = Wing.request_node_data(ref, prop_id)
+            :ok
+          other -> other
+        end
+      else
+        case Wing.set_float(console, prop_id, value_db) do
+          {:ok, _} -> :ok
+          error -> {:error, error}
+        end
+      end
     else
       {:error, reason} -> {:error, reason}
       error -> {:error, error}
@@ -353,11 +367,25 @@ defmodule Wing.Fader do
   end
 
   defp subscribe_fader(console, property_path, fader_type, subscriber) do
-    # Ensure the fader manager is running
-    ensure_manager_started()
-
     with {:ok, prop_id} <- get_property_id(property_path) do
-      GenServer.call(__MODULE__, {:subscribe, console, prop_id, fader_type, subscriber, property_path})
+      # Use Console GenServer if it's a pid, otherwise use legacy method
+      if is_pid(console) do
+        case Wing.Console.subscribe_property(console, prop_id, subscriber) do
+          :ok ->
+            # Register this subscription with the fader manager for message translation
+            ensure_manager_started()
+            GenServer.call(__MODULE__, {:register_subscription, prop_id, fader_type, subscriber})
+            # Re-request node data AFTER registration to ensure we don't miss initial value
+            ref = Wing.Console.get_console_ref(console)
+            _ = Wing.request_node_data(ref, prop_id)
+            :ok
+          error -> error
+        end
+      else
+        # Legacy method using direct property threads
+        ensure_manager_started()
+        GenServer.call(__MODULE__, {:subscribe, console, prop_id, fader_type, subscriber, property_path})
+      end
     else
       {:error, reason} -> {:error, reason}
       error -> {:error, error}
@@ -421,6 +449,25 @@ defmodule Wing.Fader do
   end
 
   @impl true
+  def handle_call({:register_subscription, prop_id, fader_type, subscriber}, _from, state) do
+    # Register subscription for message translation when using Console GenServer
+    subscription_key = {prop_id, subscriber}
+    subscription_info = %{
+      fader_type: fader_type,
+      subscriber: subscriber,
+      prop_id: prop_id
+    }
+
+    new_subscriptions = Map.put(state.subscriptions, subscription_key, subscription_info)
+    new_state = %{state | subscriptions: new_subscriptions}
+
+    # Monitor the subscriber process
+    Process.monitor(subscriber)
+
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
   def handle_info({:ok, prop_id, value}, state) do
     # Find all subscribers for this property
     matching_subscriptions =
@@ -429,6 +476,29 @@ defmodule Wing.Fader do
 
     # Send notifications to all subscribers
     for {{^prop_id, subscriber}, info} <- matching_subscriptions do
+      case info.fader_type do
+        {:channel, channel} ->
+          send(subscriber, {:fader_changed, :channel, channel, value})
+        {:bus, bus} ->
+          send(subscriber, {:fader_changed, :bus, bus, value})
+        {:main, main_type} ->
+          send(subscriber, {:fader_changed, :main, main_type, value})
+      end
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:property_changed, prop_id, value}, state) do
+    # Handle property changes from Console GenServer
+    matching_subscriptions =
+      state.subscriptions
+      |> Enum.filter(fn {{id, _subscriber}, _info} -> id == prop_id end)
+
+    # Send notifications to all subscribers
+    for {{^prop_id, subscriber}, info} <- matching_subscriptions do
+      Logger.debug("Wing.Fader translate prop_id=#{prop_id} value=#{inspect(value)} as #{inspect(info.fader_type)}")
       case info.fader_type do
         {:channel, channel} ->
           send(subscriber, {:fader_changed, :channel, channel, value})

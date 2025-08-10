@@ -133,29 +133,96 @@ fn start_meter_thread(host: Option<String>, pid_term: Term, meters_term: Term) -
 fn start_property_thread(host: Option<String>, pid_term: Term, prop_id: i32) -> NifResult<()> {
     let pid: LocalPid = pid_term.decode()?;
     std::thread::spawn(move || {
-        let mut wing = match libwing::WingConsole::connect(host.as_deref()) {
-            Ok(w) => w,
-            Err(_) => return,
+        // Add a small delay to avoid overwhelming the console with simultaneous connections
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        
+        let mut wing = None;
+        
+        // Retry connection up to 3 times with increasing delays
+        for attempt in 1..=3 {
+            match libwing::WingConsole::connect(host.as_deref()) {
+                Ok(w) => {
+                    wing = Some(w);
+                    break;
+                }
+                Err(e) => {
+                    eprintln!("Failed to connect for property thread {} (attempt {}): {:?}", prop_id, attempt, e);
+                    if attempt < 3 {
+                        std::thread::sleep(std::time::Duration::from_millis(100 * attempt as u64));
+                    }
+                }
+            }
+        }
+        
+        let mut wing = match wing {
+            Some(w) => w,
+            None => {
+                eprintln!("Failed to connect for property thread {} after 3 attempts", prop_id);
+                return;
+            }
         };
-        if wing.request_node_data(prop_id).is_err() {
+        
+        if let Err(e) = wing.request_node_data(prop_id) {
+            eprintln!("Failed to request node data for property {}: {:?}", prop_id, e);
             return;
         }
+        
         loop {
-            if let Ok(libwing::WingResponse::NodeData(id, data)) = wing.read() {
-                if id == prop_id {
-                    let mut env = OwnedEnv::new();
-                    let float_value = data.get_float();
-                    let msg = (
-                        rustler::types::atom::ok(),
-                        id,
-                        float_value
-                    );
-                    let _ = env.send_and_clear(&pid, |env| msg.encode(env));
+            match wing.read() {
+                Ok(libwing::WingResponse::NodeData(id, data)) => {
+                    if id == prop_id {
+                        let mut env = OwnedEnv::new();
+                        let float_value = data.get_float();
+                        let msg = (
+                            rustler::types::atom::ok(),
+                            id,
+                            float_value
+                        );
+                        let _ = env.send_and_clear(&pid, |env| msg.encode(env));
+                    }
+                }
+                Ok(libwing::WingResponse::RequestEnd) => {
+                    // Request end, continue reading
+                    continue;
+                }
+                Ok(libwing::WingResponse::NodeDef(_)) => {
+                    // Node definition, continue reading
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("Error reading from console for property {}: {:?}", prop_id, e);
+                    // Try to reconnect after a delay
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    wing = match libwing::WingConsole::connect(host.as_deref()) {
+                        Ok(mut w) => {
+                            if let Err(_) = w.request_node_data(prop_id) {
+                                return;
+                            }
+                            w
+                        },
+                        Err(_) => return,
+                    };
                 }
             }
         }
     });
     Ok(())
+}
+
+#[rustler::nif]
+fn init_wing_thread(host: Option<String>) -> NifResult<(WingArc, rustler::types::atom::Atom)> {
+    match WingConsole::connect(host.as_deref()) {
+        Ok(wing_console) => {
+            let wing_arc = ResourceArc::new(ExWing {
+                wing: Mutex::new(wing_console),
+            });
+            Ok((wing_arc, rustler::types::atom::ok()))
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to connect: {:?}", e);
+            Err(rustler::Error::Term(Box::new(error_msg)))
+        }
+    }
 }
 
 #[rustler::nif]

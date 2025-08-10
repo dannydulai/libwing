@@ -2,7 +2,7 @@ defmodule Wing.MeterIntegrationTest do
   use ExUnit.Case
 
   @moduletag :integration
-  @host "10.10.14.85"
+  @host TestSupport.console_ip()
 
   test "receives meter values from Wing console" do
     meters = [{:channel, 1}, {:channel, 2}, {:mix, 1}]
