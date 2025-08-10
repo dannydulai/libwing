@@ -244,14 +244,14 @@ defmodule Wing.Console do
   @impl true
   def handle_call(:reconnect, _from, state) do
     Logger.info("Reconnecting console to #{state.host}")
-    
+
     # Clean up old console reference
     old_ref = state.console_ref
-    
+
     try do
       # Connect to Wing console with the same host
       new_console_ref = Wing.connect_with_host(state.host)
-      
+
       Logger.info("Successfully reconnected to Wing console at #{state.host}")
       new_state = %{state | console_ref: new_console_ref}
       {:reply, :ok, new_state}

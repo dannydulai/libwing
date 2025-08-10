@@ -382,7 +382,8 @@ defmodule Wing.Fader do
 
       # Use Console GenServer if it's a pid, otherwise fall back to direct subscription
       if is_pid(console) do
-        case Wing.Console.subscribe_property(console, prop_id, subscriber) do
+        # Subscribe the Wing.Fader manager to the console property, not the subscriber directly
+        case Wing.Console.subscribe_property(console, prop_id, self()) do
           :ok ->
             # Register this subscription with the fader manager for message translation
             GenServer.call(__MODULE__, {:register_subscription, prop_id, fader_type, subscriber})
@@ -459,6 +460,13 @@ defmodule Wing.Fader do
   end
 
   @impl true
+  def handle_call({:subscribe_property, _prop_id, _subscriber}, _from, state) do
+    # This is called by Wing.Console.subscribe_property - just acknowledge it
+    # The actual subscription handling is done through the registration mechanism
+    {:reply, :ok, state}
+  end
+
+  @impl true
   def handle_call({:register_subscription, prop_id, fader_type, subscriber}, _from, state) do
     # Register subscription for message translation when using Console GenServer
     subscription_key = {prop_id, subscriber}
@@ -500,15 +508,27 @@ defmodule Wing.Fader do
   end
 
   @impl true
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    # Remove subscriptions for the dead process
+    new_subscriptions =
+      state.subscriptions
+      |> Enum.reject(fn {{_prop_id, subscriber}, _info} -> subscriber == pid end)
+      |> Map.new()
+
+    {:noreply, %{state | subscriptions: new_subscriptions}}
+  end
+
+  @impl true
   def handle_info({:property_changed, prop_id, value}, state) do
-    # Handle property changes from Console GenServer
+    # Handle property changes from Wing console
+    # This is the same logic as handle_info({:ok, prop_id, value}, state)
+    # Find all subscribers for this property
     matching_subscriptions =
       state.subscriptions
       |> Enum.filter(fn {{id, _subscriber}, _info} -> id == prop_id end)
 
     # Send notifications to all subscribers
     for {{^prop_id, subscriber}, info} <- matching_subscriptions do
-      Logger.debug("Wing.Fader translate prop_id=#{prop_id} value=#{inspect(value)} as #{inspect(info.fader_type)}")
       case info.fader_type do
         {:channel, channel} ->
           send(subscriber, {:fader_changed, :channel, channel, value})
@@ -520,17 +540,6 @@ defmodule Wing.Fader do
     end
 
     {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
-    # Remove subscriptions for the dead process
-    new_subscriptions =
-      state.subscriptions
-      |> Enum.reject(fn {{_prop_id, subscriber}, _info} -> subscriber == pid end)
-      |> Map.new()
-
-    {:noreply, %{state | subscriptions: new_subscriptions}}
   end
 
   @impl true
