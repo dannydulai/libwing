@@ -86,6 +86,44 @@ defmodule Wing.Console do
     GenServer.stop(console)
   end
 
+  @doc """
+  Execute a function with automatic reconnection on broken pipe errors.
+  This is a global wrapper that can be used for any Wing operation.
+  """
+  @spec with_reconnection(console_ref(), function()) :: term()
+  def with_reconnection(console, operation_fn) do
+    case operation_fn.() do
+      {:error, {:error, error_msg}} when is_binary(error_msg) ->
+        if String.contains?(error_msg, "Broken pipe") do
+          Logger.warning("Broken pipe detected, attempting reconnection")
+          case reconnect(console) do
+            :ok ->
+              Logger.info("Reconnection successful, retrying operation")
+              case operation_fn.() do
+                success_result ->
+                  Logger.info("Operation succeeded after reconnection")
+                  success_result
+              end
+            {:error, reason} ->
+              Logger.error("Reconnection failed: #{inspect(reason)}")
+              {:error, {:error, error_msg}}
+          end
+        else
+          {:error, {:error, error_msg}}
+        end
+      other_result ->
+        other_result
+    end
+  end
+
+  @doc """
+  Reconnect the console to its host.
+  """
+  @spec reconnect(console_ref()) :: :ok | {:error, term()}
+  def reconnect(console) do
+    GenServer.call(console, :reconnect)
+  end
+
   # GenServer callbacks
 
   @impl true
@@ -201,6 +239,31 @@ defmodule Wing.Console do
   @impl true
   def handle_call(:get_console_ref, _from, state) do
     {:reply, state.console_ref, state}
+  end
+
+  @impl true
+  def handle_call(:reconnect, _from, state) do
+    Logger.info("Reconnecting console to #{state.host}")
+    
+    # Clean up old console reference
+    old_ref = state.console_ref
+    
+    try do
+      # Connect to Wing console with the same host
+      new_console_ref = Wing.connect_with_host(state.host)
+      
+      Logger.info("Successfully reconnected to Wing console at #{state.host}")
+      new_state = %{state | console_ref: new_console_ref}
+      {:reply, :ok, new_state}
+    rescue
+      error ->
+        Logger.error("Failed to reconnect to Wing console: #{inspect(error)}")
+        {:reply, {:error, error}, state}
+    catch
+      kind, reason ->
+        Logger.error("Reconnection failed with #{kind}: #{inspect(reason)}")
+        {:reply, {:error, reason}, state}
+    end
   end
 
   @impl true

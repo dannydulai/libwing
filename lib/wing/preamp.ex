@@ -381,16 +381,26 @@ defmodule Wing.Preamp do
     with {:ok, prop_id} <- get_property_id(property_path) do
       # Use Console GenServer if it's a pid, otherwise fall back to direct NIF
       if is_pid(console) do
-        case Wing.Console.set_float(console, prop_id, value_db) do
-          :ok ->
-            ref = Wing.Console.get_console_ref(console)
-            _ = Wing.request_node_data(ref, prop_id)
-            :ok
-          other -> other
-        end
+        # Use the global reconnection wrapper for Console GenServer
+        Wing.Console.with_reconnection(console, fn ->
+          case Wing.Console.set_float(console, prop_id, value_db) do
+            :ok ->
+              ref = Wing.Console.get_console_ref(console)
+              _ = Wing.request_node_data(ref, prop_id)
+              :ok
+            other -> other
+          end
+        end)
       else
         case Wing.set_float(console, prop_id, value_db) do
           {:ok, _} -> :ok
+          {:error, {:error, error_msg}} when is_binary(error_msg) ->
+            # For direct references, we can't automatically reconnect
+            # The calling code needs to handle this
+            if String.contains?(error_msg, "Broken pipe") do
+              Logger.warning("Broken pipe detected on direct console reference - reconnection needed")
+            end
+            {:error, {:error, error_msg}}
           error -> {:error, error}
         end
       end

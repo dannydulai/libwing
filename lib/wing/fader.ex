@@ -346,17 +346,27 @@ defmodule Wing.Fader do
     with {:ok, prop_id} <- get_property_id(property_path) do
       # Use Console GenServer if it's a pid, otherwise fall back to direct NIF
       if is_pid(console) do
-        case Wing.Console.set_float(console, prop_id, value_db) do
-          :ok ->
-            # Force fetch of current value to emit notification (console may be edge-triggered)
-            ref = Wing.Console.get_console_ref(console)
-            _ = Wing.request_node_data(ref, prop_id)
-            :ok
-          other -> other
-        end
+        # Use the global reconnection wrapper for Console GenServer
+        Wing.Console.with_reconnection(console, fn ->
+          case Wing.Console.set_float(console, prop_id, value_db) do
+            :ok ->
+              # Force fetch of current value to emit notification (console may be edge-triggered)
+              ref = Wing.Console.get_console_ref(console)
+              _ = Wing.request_node_data(ref, prop_id)
+              :ok
+            other -> other
+          end
+        end)
       else
         case Wing.set_float(console, prop_id, value_db) do
           {:ok, _} -> :ok
+          {:error, {:error, error_msg}} when is_binary(error_msg) ->
+            # For direct references, we can't automatically reconnect
+            # The calling code needs to handle this
+            if String.contains?(error_msg, "Broken pipe") do
+              Logger.warning("Broken pipe detected on direct console reference - reconnection needed")
+            end
+            {:error, {:error, error_msg}}
           error -> {:error, error}
         end
       end
@@ -368,12 +378,13 @@ defmodule Wing.Fader do
 
   defp subscribe_fader(console, property_path, fader_type, subscriber) do
     with {:ok, prop_id} <- get_property_id(property_path) do
-      # Use Console GenServer if it's a pid, otherwise use legacy method
+      ensure_manager_started()
+
+      # Use Console GenServer if it's a pid, otherwise fall back to direct subscription
       if is_pid(console) do
         case Wing.Console.subscribe_property(console, prop_id, subscriber) do
           :ok ->
             # Register this subscription with the fader manager for message translation
-            ensure_manager_started()
             GenServer.call(__MODULE__, {:register_subscription, prop_id, fader_type, subscriber})
             # Re-request node data AFTER registration to ensure we don't miss initial value
             ref = Wing.Console.get_console_ref(console)
@@ -383,7 +394,6 @@ defmodule Wing.Fader do
         end
       else
         # Legacy method using direct property threads
-        ensure_manager_started()
         GenServer.call(__MODULE__, {:subscribe, console, prop_id, fader_type, subscriber, property_path})
       end
     else
