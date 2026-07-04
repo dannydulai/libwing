@@ -62,7 +62,7 @@ pub extern "C" fn wing_discover_count(handle: *const WingDiscoveryInfoHandle) ->
 #[no_mangle]
 pub extern "C" fn wing_discover_get_ip(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.ip[..]).unwrap().into_raw()
     }
 }
@@ -70,7 +70,7 @@ pub extern "C" fn wing_discover_get_ip(handle: *const WingDiscoveryInfoHandle, i
 #[no_mangle]
 pub extern "C" fn wing_discover_get_name(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.name[..]).unwrap().into_raw()
     }
 }
@@ -78,7 +78,7 @@ pub extern "C" fn wing_discover_get_name(handle: *const WingDiscoveryInfoHandle,
 #[no_mangle]
 pub extern "C" fn wing_discover_get_model(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.model[..]).unwrap().into_raw()
     }
 }
@@ -86,7 +86,7 @@ pub extern "C" fn wing_discover_get_model(handle: *const WingDiscoveryInfoHandle
 #[no_mangle]
 pub extern "C" fn wing_discover_get_serial(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.serial[..]).unwrap().into_raw()
     }
 }
@@ -94,7 +94,7 @@ pub extern "C" fn wing_discover_get_serial(handle: *const WingDiscoveryInfoHandl
 #[no_mangle]
 pub extern "C" fn wing_discover_get_firmware(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.firmware[..]).unwrap().into_raw()
     }
 }
