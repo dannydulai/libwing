@@ -84,6 +84,7 @@ void               wing_console_destroy                           (WingConsole* 
 WingResponseType   wing_response_get_type                         (const Response* handle);
 void               wing_response_destroy                          (Response* handle);
 
+int32_t            wing_node_data_get_id                          (const Response* handle); // id of the changed node (0 if response is not node-data)
 const char*        wing_node_data_get_string                      (const Response* handle); // Return value must be free by wing_string_destroy()
 float              wing_node_data_get_float                       (const Response* handle);
 int                wing_node_data_get_int                         (const Response* handle);
