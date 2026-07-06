@@ -62,7 +62,7 @@ pub extern "C" fn wing_discover_count(handle: *const WingDiscoveryInfoHandle) ->
 #[no_mangle]
 pub extern "C" fn wing_discover_get_ip(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.ip[..]).unwrap().into_raw()
     }
 }
@@ -70,7 +70,7 @@ pub extern "C" fn wing_discover_get_ip(handle: *const WingDiscoveryInfoHandle, i
 #[no_mangle]
 pub extern "C" fn wing_discover_get_name(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.name[..]).unwrap().into_raw()
     }
 }
@@ -78,7 +78,7 @@ pub extern "C" fn wing_discover_get_name(handle: *const WingDiscoveryInfoHandle,
 #[no_mangle]
 pub extern "C" fn wing_discover_get_model(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.model[..]).unwrap().into_raw()
     }
 }
@@ -86,7 +86,7 @@ pub extern "C" fn wing_discover_get_model(handle: *const WingDiscoveryInfoHandle
 #[no_mangle]
 pub extern "C" fn wing_discover_get_serial(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.serial[..]).unwrap().into_raw()
     }
 }
@@ -94,7 +94,7 @@ pub extern "C" fn wing_discover_get_serial(handle: *const WingDiscoveryInfoHandl
 #[no_mangle]
 pub extern "C" fn wing_discover_get_firmware(handle: *const WingDiscoveryInfoHandle, index: c_int) -> *const c_char {
     unsafe {
-        let info = &(*handle).info[index as usize];
+        let info = &(&(*handle).info)[index as usize];
         CString::new(&info.firmware[..]).unwrap().into_raw()
     }
 }
@@ -104,7 +104,11 @@ pub extern "C" fn wing_console_connect(ip: *const c_char) -> *mut WingConsoleHan
     if ip.is_null() {
         match WingConsole::connect(None) {
             Ok(console) => Box::into_raw(Box::new(WingConsoleHandle { console })),
-            Err(_) => ptr::null_mut()
+            Err(a) => {
+                print!("Failed to connect to console");
+                print!("Error: {:?}", a);
+                ptr::null_mut()
+            }
         }
     } else if let Ok(ip) = unsafe { CStr::from_ptr(ip).to_str() } {
         match WingConsole::connect(Some(ip)) {
